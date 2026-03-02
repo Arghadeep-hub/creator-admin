@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, Wifi, WifiOff, MapPin, Instagram } from 'lucide-react'
+import { Search, MapPin, Instagram, Users, UserCheck, Clock, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { TrustScoreGauge } from '@/components/shared/TrustScoreGauge'
@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { formatCurrency, formatNumber } from '@/lib/utils'
+import { cn, formatCurrency, formatNumber } from '@/lib/utils'
 import { MOCK_CREATORS } from '@/data/creators'
 
 const KYC_OPTIONS = [
@@ -36,6 +36,15 @@ export function CreatorsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
 
+  const hasActiveFilters = !!(search || kycFilter || statusFilter || cityFilter)
+
+  const clearFilters = () => {
+    setSearch('')
+    setKycFilter('')
+    setStatusFilter('')
+    setCityFilter('')
+  }
+
   const filtered = useMemo(() => {
     return MOCK_CREATORS.filter(c => {
       const q = search.toLowerCase()
@@ -61,45 +70,77 @@ export function CreatorsPage() {
         subtitle={`${stats.total} total creators`}
       />
 
-      {/* Stats Row */}
+      {/* Stats Row — all cards are actionable filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'text-primary', bg: 'bg-orange-50' },
-          { label: 'Active', value: stats.active, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'KYC Pending', value: stats.kycPending, color: 'text-amber-600', bg: 'bg-amber-50', action: () => setKycFilter('pending') },
-          { label: 'Flagged', value: stats.flagged, color: 'text-red-600', bg: 'bg-red-50', action: () => setStatusFilter('flagged') },
-        ].map(s => (
-          <button
-            key={s.label}
-            onClick={s.action}
-            className={`admin-card p-4 text-left ${s.action ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-          >
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className={`text-2xl font-bold num-font mt-1 ${s.color}`}>{s.value}</p>
-          </button>
-        ))}
+          { label: 'Total', value: stats.total, icon: Users, iconColor: 'text-primary', iconBg: 'bg-orange-50', filterKey: '' as const, filterValue: '' },
+          { label: 'Active', value: stats.active, icon: UserCheck, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50', filterKey: 'status' as const, filterValue: 'active' },
+          { label: 'KYC Pending', value: stats.kycPending, icon: Clock, iconColor: 'text-amber-600', iconBg: 'bg-amber-50', filterKey: 'kyc' as const, filterValue: 'pending' },
+          { label: 'Flagged', value: stats.flagged, icon: AlertTriangle, iconColor: 'text-red-600', iconBg: 'bg-red-50', filterKey: 'status' as const, filterValue: 'flagged' },
+        ].map(s => {
+          const Icon = s.icon
+          const isActive =
+            (s.filterKey === 'status' && statusFilter === s.filterValue) ||
+            (s.filterKey === 'kyc' && kycFilter === s.filterValue)
+
+          return (
+            <button
+              key={s.label}
+              onClick={() => {
+                if (s.filterKey === 'status') {
+                  setStatusFilter(prev => prev === s.filterValue ? '' : s.filterValue)
+                  setKycFilter('')
+                } else if (s.filterKey === 'kyc') {
+                  setKycFilter(prev => prev === s.filterValue ? '' : s.filterValue)
+                  setStatusFilter('')
+                } else {
+                  clearFilters()
+                }
+              }}
+              className={cn(
+                'admin-card p-4 text-left cursor-pointer hover:shadow-md transition-all flex items-center gap-3',
+                isActive && 'ring-2 ring-primary/30 shadow-md'
+              )}
+            >
+              <div className={cn('rounded-lg p-2 shrink-0', s.iconBg)}>
+                <Icon className={cn('h-4 w-4', s.iconColor)} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className={cn('text-2xl font-bold num-font', s.iconColor)}>{s.value}</p>
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input placeholder="Search creators..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search by name, email, or handle..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={kycFilter} onValueChange={setKycFilter} options={KYC_OPTIONS} className="w-44" />
         <Select value={statusFilter} onValueChange={setStatusFilter} options={ACCOUNT_OPTIONS} className="w-40" />
         <Select value={cityFilter} onValueChange={setCityFilter} options={CITY_OPTIONS} className="w-40" />
-        <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+            Clear all
+          </Button>
+        )}
       </div>
 
-      <p className="text-sm text-muted-foreground">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</p>
+      {/* Results count inline */}
+      <p className="text-sm text-muted-foreground">
+        Showing {filtered.length} of {stats.total} creator{stats.total !== 1 ? 's' : ''}
+      </p>
 
       {filtered.length === 0 ? (
         <EmptyState
           title="No creators found"
-          description="Try adjusting your filters."
+          description="Try adjusting your search or filters."
           actionLabel="Clear Filters"
-          onAction={() => { setSearch(''); setKycFilter(''); setStatusFilter(''); setCityFilter('') }}
+          onAction={clearFilters}
         />
       ) : (
         <div className="admin-card overflow-hidden">
@@ -107,7 +148,7 @@ export function CreatorsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Creator', 'City', 'Instagram', 'KYC', 'Trust Score', 'Wallet', 'Submissions', 'Status', ''].map(h => (
+                  {['Creator', 'City', 'Instagram', 'KYC', 'Trust', 'Earnings', 'Submissions', 'Status'].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -116,8 +157,11 @@ export function CreatorsPage() {
                 {filtered.map(creator => (
                   <tr
                     key={creator.id}
-                    className="hover:bg-slate-50/50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`creators/${creator.id}`)}
+                    className={cn(
+                      'hover:bg-slate-50/50 cursor-pointer transition-colors',
+                      creator.accountStatus === 'flagged' && 'bg-red-50/40 hover:bg-red-50/60'
+                    )}
+                    onClick={() => navigate(`/creators/${creator.id}`)}
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
@@ -134,14 +178,8 @@ export function CreatorsPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        {creator.instagramConnected
-                          ? <Wifi className="h-3.5 w-3.5 text-emerald-500" />
-                          : <WifiOff className="h-3.5 w-3.5 text-slate-400" />
-                        }
-                        <span className="text-xs">@{creator.instagramHandle}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-xs font-medium">{creator.instagramHandle}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Instagram className="h-3 w-3" />{formatNumber(creator.instagramFollowers)}
                       </span>
                     </td>
@@ -161,14 +199,6 @@ export function CreatorsPage() {
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge status={creator.accountStatus} />
-                    </td>
-                    <td className="py-3 px-4">
-                      <button
-                        className="text-xs text-primary hover:underline cursor-pointer"
-                        onClick={e => { e.stopPropagation(); navigate(`creators/${creator.id}`) }}
-                      >
-                        View →
-                      </button>
                     </td>
                   </tr>
                 ))}

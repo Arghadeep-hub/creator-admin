@@ -31,15 +31,15 @@ export function HashtagsCard({ hashtags, setHashtags }: Props) {
             {hashtags.map(tag => (
               <span
                 key={tag}
-                className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-sm font-medium text-primary"
+                className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 pl-3 pr-1.5 py-1 text-sm font-medium text-primary"
               >
                 <Hash className="h-3 w-3" />
                 {tag.replace('#', '')}
                 <button
                   onClick={() => setHashtags(h => h.filter(t => t !== tag))}
-                  className="ml-0.5 rounded-full hover:text-red-500 cursor-pointer"
+                  className="flex items-center justify-center h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-500 cursor-pointer transition-colors"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </span>
             ))}

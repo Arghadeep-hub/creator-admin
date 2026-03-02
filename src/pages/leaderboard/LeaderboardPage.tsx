@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Trophy, Crown, Medal, TrendingUp, Users, Calendar, Settings } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Avatar } from '@/components/ui/avatar'
@@ -8,7 +9,7 @@ import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/contexts/ToastContext'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { MOCK_LEADERBOARD_CONFIG, CURRENT_LEADERBOARD } from '@/data/leaderboard'
 
 const WEEK_OPTIONS = MOCK_LEADERBOARD_CONFIG.weeklySnapshots.map((snap, i) => ({
@@ -22,13 +23,13 @@ const TIER_STYLES: Record<string, { border: string; bg: string; icon: typeof Tro
   bronze: { border: 'border-amber-700/40', bg: 'bg-orange-50', icon: Trophy },
 }
 
-const RANK_ICONS = ['🥇', '🥈', '🥉']
+const RANK_ICONS = ['\u{1F947}', '\u{1F948}', '\u{1F949}']
 
 export function LeaderboardPage() {
+  const navigate = useNavigate()
   const { success } = useToast()
   const [weekIdx, setWeekIdx] = useState('0')
   const [tab, setTab] = useState('leaderboard')
-  const [_configChanged, _setConfigChanged] = useState(false)
 
   const selectedWeek = MOCK_LEADERBOARD_CONFIG.weeklySnapshots[Number(weekIdx)]
   const entries = selectedWeek?.entries ?? CURRENT_LEADERBOARD
@@ -41,46 +42,60 @@ export function LeaderboardPage() {
       <PageHeader
         title="Leaderboard"
         subtitle="Weekly creator rankings"
-      >
-        <Select value={weekIdx} onValueChange={setWeekIdx} options={WEEK_OPTIONS} className="w-52" />
-      </PageHeader>
+      />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="history">Snapshots</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="config">Configuration</TabsTrigger>
+            <TabsTrigger value="history">Snapshots</TabsTrigger>
+          </TabsList>
+          {tab === 'leaderboard' && (
+            <Select value={weekIdx} onValueChange={setWeekIdx} options={WEEK_OPTIONS} className="w-52" />
+          )}
+        </div>
 
         {/* ── Leaderboard ── */}
         <TabsContent value="leaderboard">
-          {/* Podium (Top 3) */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          {/* Podium (Top 3) — stacks on mobile, 3-col on md+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[podium[1], podium[0], podium[2]].map((entry, podiumIdx) => {
               if (!entry) return null
               const visualRank = podiumIdx === 0 ? 2 : podiumIdx === 1 ? 1 : 3
-              const actualEntry = entry
-              const styles = TIER_STYLES[actualEntry.tier]
+              const styles = TIER_STYLES[entry.tier]
               const Icon = styles.icon
-              const heights = { 1: 'pt-0', 2: 'pt-6', 3: 'pt-12' }
+              const heights: Record<number, string> = { 1: 'sm:pt-0', 2: 'sm:pt-6', 3: 'sm:pt-10' }
 
               return (
-                <div key={actualEntry.creatorId} className={`flex flex-col items-center ${heights[visualRank as 1|2|3]}`}>
-                  <div className={`relative w-full rounded-2xl border-2 ${styles.border} ${styles.bg} p-4 flex flex-col items-center gap-2 transition-transform hover:scale-105`}>
+                <div
+                  key={entry.creatorId}
+                  className={cn('flex flex-col items-center', heights[visualRank])}
+                >
+                  <div
+                    className={cn(
+                      'relative w-full rounded-2xl border-2 p-4 flex flex-col items-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer',
+                      styles.border, styles.bg
+                    )}
+                    onClick={() => navigate(`/creators/${entry.creatorId}`)}
+                  >
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                       <span className="text-2xl">{RANK_ICONS[visualRank - 1]}</span>
                     </div>
-                    <Avatar name={actualEntry.creatorName} size="lg" className="mt-2" />
-                    <p className="font-bold text-sm text-center leading-tight">{actualEntry.creatorName}</p>
-                    <p className="text-primary font-bold num-font text-lg">{formatCurrency(actualEntry.weeklyEarnings)}</p>
-                    <p className="text-xs text-muted-foreground">{actualEntry.points} pts · {actualEntry.submissions} reels</p>
+                    <Avatar name={entry.creatorName} size="lg" className="mt-2" />
+                    <p className="font-bold text-sm text-center leading-tight">{entry.creatorName}</p>
+                    <p className="text-primary font-bold num-font text-lg">{formatCurrency(entry.weeklyEarnings)}</p>
+                    <p className="text-xs text-muted-foreground">{entry.points} pts · {entry.submissions} reels</p>
                     <div className="flex flex-wrap justify-center gap-1">
-                      {actualEntry.badges.map(badge => (
+                      {entry.badges.map(badge => (
                         <Badge key={badge} variant="orange" className="text-xs">{badge}</Badge>
                       ))}
                     </div>
                     <div className="absolute top-2 right-2">
-                      <Icon className={`h-4 w-4 ${actualEntry.tier === 'gold' ? 'text-amber-500' : actualEntry.tier === 'silver' ? 'text-slate-400' : 'text-amber-700'}`} />
+                      <Icon className={cn(
+                        'h-4 w-4',
+                        entry.tier === 'gold' ? 'text-amber-500' : entry.tier === 'silver' ? 'text-slate-400' : 'text-amber-700'
+                      )} />
                     </div>
                   </div>
                 </div>
@@ -93,21 +108,22 @@ export function LeaderboardPage() {
             {rest.map(entry => (
               <div
                 key={entry.creatorId}
-                className="admin-card p-4 flex items-center gap-4"
+                className="admin-card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/creators/${entry.creatorId}`)}
               >
-                <span className="text-lg font-bold num-font text-muted-foreground w-8 text-center">#{entry.rank}</span>
+                <span className="text-lg font-bold num-font text-muted-foreground w-8 text-center shrink-0">#{entry.rank}</span>
                 <Avatar name={entry.creatorName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm">{entry.creatorName}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                     <span>{entry.points} pts</span>
                     <span>{entry.submissions} reels</span>
+                    {entry.badges.map(badge => (
+                      <Badge key={badge} variant="gray" className="text-xs">{badge}</Badge>
+                    ))}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  {entry.badges.map(badge => (
-                    <Badge key={badge} variant="gray" className="text-xs hidden sm:flex">{badge}</Badge>
-                  ))}
                   <p className="font-bold num-font text-primary">{formatCurrency(entry.weeklyEarnings)}</p>
                   <Badge
                     variant={entry.tier === 'gold' ? 'warning' : entry.tier === 'silver' ? 'secondary' : 'gray'}
@@ -136,7 +152,7 @@ export function LeaderboardPage() {
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>Ranks: {tier.rankRange.min}–{tier.rankRange.max ?? '∞'}</span>
+                      <span>Ranks: {tier.rankRange.min}–{tier.rankRange.max ?? '\u221E'}</span>
                       <span>Min Weekly: {formatCurrency(tier.minWeeklyEarnings)}</span>
                     </div>
                   </div>
@@ -180,15 +196,19 @@ export function LeaderboardPage() {
             {MOCK_LEADERBOARD_CONFIG.weeklySnapshots.map((snap, i) => (
               <Card key={i}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <span>{i === 0 ? '🔴 Current' : ''} Week of {snap.weekStart}</span>
+                  <CardTitle className="flex items-center justify-between text-base flex-wrap gap-2">
+                    <span>{i === 0 ? 'Current' : ''} Week of {snap.weekStart}</span>
                     <Badge variant={i === 0 ? 'success' : 'gray'}>{i === 0 ? 'Active' : 'Archived'}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                     {snap.entries.slice(0, 3).map((e) => (
-                      <div key={e.creatorId} className="flex items-center gap-2">
+                      <div
+                        key={e.creatorId}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded-lg p-1 -m-1 transition-colors"
+                        onClick={() => navigate(`/creators/${e.creatorId}`)}
+                      >
                         <span className="text-lg">{RANK_ICONS[e.rank - 1]}</span>
                         <div>
                           <p className="font-medium text-xs leading-tight">{e.creatorName}</p>
@@ -197,11 +217,21 @@ export function LeaderboardPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1"><Users className="h-3 w-3" />{snap.entries.length} creators ranked</span>
                     <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />
                       Top earnings: {formatCurrency(snap.entries[0]?.weeklyEarnings ?? 0)}
                     </span>
+                    {i !== 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs ml-auto"
+                        onClick={() => { setWeekIdx(String(i)); setTab('leaderboard') }}
+                      >
+                        View full ranking
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

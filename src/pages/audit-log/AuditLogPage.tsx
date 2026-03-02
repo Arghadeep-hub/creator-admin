@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, Filter, Download, AlertTriangle, Info, AlertCircle } from 'lucide-react'
+import { Search, Download, AlertTriangle, Info, AlertCircle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { RoleBadge } from '@/components/shared/RoleBadge'
@@ -102,7 +102,6 @@ export function AuditLogPage() {
         </div>
         <Select value={category} onValueChange={setCategory} options={CATEGORY_OPTIONS} className="w-44" />
         <Select value={severity} onValueChange={setSeverity} options={SEVERITY_OPTIONS} className="w-36" />
-        <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
       </div>
 
       <p className="text-sm text-muted-foreground">{filtered.length} entries</p>

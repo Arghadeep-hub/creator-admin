@@ -16,18 +16,18 @@ export function PayoutStructureCard({ form, set }: Props) {
         <CardTitle>Payout Structure</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label>Min Payout (₹)</Label>
-            <Input type="number" value={form.payoutMin} onChange={e => set('payoutMin', +e.target.value)} />
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="space-y-1">
+            <Label className="text-xs sm:text-sm">Min (₹)</Label>
+            <Input type="number" value={form.payoutMin} onChange={e => set('payoutMin', +e.target.value)} className="px-2 sm:px-3" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Base Payout (₹)</Label>
-            <Input type="number" value={form.payoutBase} onChange={e => set('payoutBase', +e.target.value)} />
+          <div className="space-y-1">
+            <Label className="text-xs sm:text-sm">Base (₹)</Label>
+            <Input type="number" value={form.payoutBase} onChange={e => set('payoutBase', +e.target.value)} className="px-2 sm:px-3" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Max Payout (₹)</Label>
-            <Input type="number" value={form.payoutMax} onChange={e => set('payoutMax', +e.target.value)} />
+          <div className="space-y-1">
+            <Label className="text-xs sm:text-sm">Max (₹)</Label>
+            <Input type="number" value={form.payoutMax} onChange={e => set('payoutMax', +e.target.value)} className="px-2 sm:px-3" />
           </div>
         </div>
 
@@ -42,12 +42,12 @@ export function PayoutStructureCard({ form, set }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 sm:px-4 py-3">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Auto-calculate metrics</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Automatically fetch and update engagement data</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Automatically fetch & update engagement data</p>
           </div>
-          <Switch checked={form.autoCalculateMetrics} onCheckedChange={v => set('autoCalculateMetrics', v)} />
+          <Switch checked={form.autoCalculateMetrics} onCheckedChange={v => set('autoCalculateMetrics', v)} className="shrink-0" />
         </div>
       </CardContent>
     </Card>
