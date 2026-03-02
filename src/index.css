@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-foreground: #ffffff;
+
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #f97316;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #334155;
+  --color-sidebar-border: #e2e8f0;
+  --color-sidebar-active: #fff7ed;
+  --color-sidebar-active-foreground: #f97316;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* Status + layout tokens */
+:root {
+  --status-pending: #f59e0b;
+  --status-approved: #10b981;
+  --status-rejected: #ef4444;
+  --status-paid: #3b82f6;
+  --status-locked: #f97316;
+  --mobile-nav-height: 3.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    color: #0f172a;
+    background:
+      radial-gradient(1400px 500px at 8% -10%, #ffedd5 0%, rgba(255, 237, 213, 0) 58%),
+      radial-gradient(1000px 500px at 95% 10%, #e0f2fe 0%, rgba(224, 242, 254, 0) 54%),
+      #f8fafc;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus (font-size < 16px triggers zoom).
+     Scoped to iOS only — no effect on Android or desktop. */
+  @supports (-webkit-touch-callout: none) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .num-font {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Cards */
+  .admin-card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+  }
+
+  .admin-card-elevated {
+    @apply bg-white rounded-xl border border-slate-200 shadow-md hover:shadow-lg transition-shadow;
+  }
+
+  .admin-card-danger {
+    @apply bg-red-50 rounded-xl border border-red-200;
+  }
+
+  .admin-card-success {
+    @apply bg-emerald-50 rounded-xl border border-emerald-200;
+  }
+
+  /* Scrollbar hide utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Floating mobile CTA — sits above the bottom nav bar */
+  .floating-mobile-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 0.5rem);
+    z-index: 30;
+  }
+
+  /* Safe area padding for PWA notch/status bar */
+  .pwa-top-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* GPS check-in pulse rings */
+  @keyframes gps-ping {
+    0%   { transform: scale(1);   opacity: 0.8; }
+    70%  { transform: scale(2.8); opacity: 0;   }
+    100% { transform: scale(2.8); opacity: 0;   }
+  }
+
+  .gps-ring {
+    animation: gps-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  .gps-ring-delayed {
+    animation: gps-ping 2s cubic-bezier(0, 0, 0.2, 1) 0.9s infinite;
+  }
+
+  /* Payout celebration pulse */
+  @keyframes celebrate {
+    0%, 100% { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0.45); }
+    50%       { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0);   }
+  }
+
+  .celebrate-pulse {
+    animation: celebrate 1.8s ease-in-out infinite;
+  }
+}

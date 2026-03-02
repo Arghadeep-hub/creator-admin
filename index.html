@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Primary favicon -->
+    <link rel="icon" type="image/png" href="/icons/favicon.png" />
+
+    <!-- PWA manifest (injected by vite-plugin-pwa) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Theme color for browser chrome (Android) -->
+    <meta name="theme-color" content="#f97316" />
+
+    <!-- iOS PWA meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Try The Menu Creator" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- MS Tiles (Windows / Edge) -->
+    <meta name="msapplication-TileColor" content="#111827" />
+    <meta name="msapplication-TileImage" content="/icons/icon-192x192.png" />
+
+    <!-- App meta -->
+    <title>Creator Admin</title>
+    <meta name="description" content="Try The Menu Creator Portal — manage campaigns, submissions and payouts." />
+    <meta name="application-name" content="Try The Menu Creator" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Try The Menu Creator Portal" />
+    <meta property="og:description" content="Manage campaigns, submissions and payouts." />
+    <meta property="og:image" content="/icons/icon-512x512.png" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/icons/icon-512x512.png" />
+
+    <!-- Inline splash screen shown until React mounts -->
+    <style>
+      #splash{
+        position:fixed;
+        inset:0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        background:radial-gradient(circle at top right,#ffedd5 0%,#f8fafc 34%,#f8fafc 100%);
+        z-index:9999;
+      }
+      #splash .s-panel{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:.75rem;
+      }
+      #splash .s-spinner{
+        width:2rem;
+        height:2rem;
+        border-radius:9999px;
+        border:3px solid #e5e7eb;
+        border-top-color:#111827;
+        animation:s-spin .8s linear infinite;
+      }
+      #splash .s-text{
+        font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+        font-size:.75rem;
+        font-weight:600;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#6b7280;
+      }
+      @keyframes s-spin{
+        to{transform:rotate(360deg)}
+      }
+      @media (prefers-reduced-motion: reduce){
+        #splash .s-spinner{animation:none}
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Splash shown until React mounts, then replaced -->
+      <div id="splash">
+        <div class="s-panel" role="status" aria-label="Loading">
+          <span class="s-spinner"></span>
+          <span class="s-text">Loading...</span>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
