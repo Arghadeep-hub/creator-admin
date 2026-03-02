@@ -184,7 +184,7 @@ export function ReportsPage() {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={KYC_DISTRIBUTION} cx="50%" cy="50%" outerRadius={80} dataKey="count" nameKey="status" label={({ status, count }) => `${status}: ${count}`}>
+                      <Pie data={KYC_DISTRIBUTION} cx="50%" cy="50%" outerRadius={80} dataKey="count" nameKey="status" label={(props) => `${(props as any).status}: ${(props as any).count}`}>
                         {KYC_DISTRIBUTION.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />
                         ))}
