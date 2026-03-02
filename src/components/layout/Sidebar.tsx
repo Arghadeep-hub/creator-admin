@@ -8,7 +8,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { BrandLogo } from '@/components/BrandLogo'
 import {
   LayoutDashboard, Megaphone, Users, Video, Wallet, Trophy,
-  ShieldCheck, Settings, ClipboardList, BarChart3,
+  ShieldCheck, Settings, ClipboardList, BarChart3, UserCircle,
   PanelLeftClose, PanelLeftOpen, LogOut
 } from 'lucide-react'
 
@@ -50,6 +50,12 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Admin Mgmt', icon: ShieldCheck,   path: '/admin-management', superAdminOnly: true },
       { label: 'Audit Log',  icon: ClipboardList, path: '/audit-log',        superAdminOnly: true },
       { label: 'Settings',   icon: Settings,      path: '/settings',         superAdminOnly: true },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { label: 'Profile', icon: UserCircle, path: '/profile' },
     ],
   },
 ]
@@ -198,25 +204,43 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
         })}
       </nav>
 
-      {/* ── Footer: User + Logout + Expand ── */}
+      {/* ── Footer: User identity + Logout + Expand ── */}
       <div className="border-t border-slate-100 p-2.5 space-y-1">
-        {/* User card */}
         {collapsed ? (
-          <Tooltip content={session?.name ?? 'Profile'} side="right" className="w-full">
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              <Avatar name={session?.name ?? 'Admin'} size="sm" />
-            </button>
-          </Tooltip>
+          <>
+            {/* Avatar only — collapsed */}
+            <Tooltip content={session?.name ?? 'User'} side="right" className="w-full">
+              <div className="w-full flex items-center justify-center p-2">
+                <Avatar name={session?.name ?? 'Admin'} size="sm" />
+              </div>
+            </Tooltip>
+
+            {/* Logout */}
+            <Tooltip content="Logout" side="right" className="w-full">
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full flex items-center justify-center p-2 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </Tooltip>
+
+            {/* Expand */}
+            <Tooltip content="Expand sidebar" side="right" className="w-full">
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-label="Expand sidebar"
+                className="w-full flex items-center justify-center p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          </>
         ) : (
-          <button
-            type="button"
-            onClick={() => navigate('/profile')}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer text-left"
-          >
+          /* Single row: Avatar + Name/Role + Logout — expanded */
+          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl">
             <Avatar name={session?.name ?? 'Admin'} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate text-slate-900">{session?.name}</p>
@@ -224,43 +248,15 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
                 {session?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
               </p>
             </div>
-          </button>
-        )}
-
-        {/* Logout */}
-        {collapsed ? (
-          <Tooltip content="Logout" side="right" className="w-full">
             <button
               type="button"
               onClick={logout}
-              className="w-full flex items-center justify-center p-2 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+              aria-label="Logout"
             >
               <LogOut className="h-4 w-4" />
             </button>
-          </Tooltip>
-        ) : (
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            <span>Logout</span>
-          </button>
-        )}
-
-        {/* Expand toggle (collapsed only) */}
-        {collapsed && (
-          <Tooltip content="Expand sidebar" side="right" className="w-full">
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-label="Expand sidebar"
-              className="w-full flex items-center justify-center p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
-          </Tooltip>
+          </div>
         )}
       </div>
     </motion.aside>

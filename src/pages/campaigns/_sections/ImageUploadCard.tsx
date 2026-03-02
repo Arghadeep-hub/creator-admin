@@ -54,7 +54,7 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
               <button
                 key={mode}
                 onClick={() => setImageMode(mode)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 sm:py-1 text-xs font-medium transition-all cursor-pointer ${
                   imageMode === mode
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
@@ -89,9 +89,9 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
               </div>
               <button
                 onClick={clearImage}
-                className="absolute right-2.5 top-2.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70 transition-colors"
+                className="absolute right-2 top-2 flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70 transition-colors"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </button>
             </>
           ) : (

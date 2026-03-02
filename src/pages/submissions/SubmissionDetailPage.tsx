@@ -30,7 +30,7 @@ export function SubmissionDetailPage() {
   const creator = sub ? MOCK_CREATORS.find(c => c.id === sub.creatorId) : null
 
   if (!sub) {
-    return <EmptyState title="Submission not found" actionLabel="Back" onAction={() => navigate('submissions')} />
+    return <EmptyState title="Submission not found" actionLabel="Back to Submissions" onAction={() => navigate('/submissions')} />
   }
 
   const trustColor = sub.trustSignals.gpsVerified && sub.trustSignals.billVerified && !sub.trustSignals.postDeleted && !sub.trustSignals.captionEdited
@@ -39,7 +39,7 @@ export function SubmissionDetailPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate('submissions')}>
+        <Button variant="ghost" size="icon-sm" onClick={() => navigate('/submissions')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <PageHeader
@@ -365,7 +365,7 @@ export function SubmissionDetailPage() {
                   <Avatar name={creator.name} size="md" />
                   <div>
                     <p className="font-semibold text-sm">{creator.name}</p>
-                    <p className="text-xs text-muted-foreground">@{creator.instagramHandle}</p>
+                    <p className="text-xs text-muted-foreground">{creator.instagramHandle}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between mb-3">
@@ -376,7 +376,7 @@ export function SubmissionDetailPage() {
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => navigate(`creators/${creator.id}`)}
+                  onClick={() => navigate(`/creators/${creator.id}`)}
                 >
                   View Profile
                 </Button>

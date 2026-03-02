@@ -66,24 +66,24 @@ export function CampaignFormPage() {
   )
 
   return (
-    <div className="space-y-5 w-full pb-40 md:pb-0">
+    <div className="space-y-4 sm:space-y-5 w-full pb-32 sm:pb-0">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)}>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <PageHeader
           title={isEdit ? `Edit: ${existing?.name}` : 'New Campaign'}
           subtitle={isEdit ? 'Update the campaign details below' : 'Fill in the details to launch a new campaign'}
-          className="mb-0 flex-1"
+          className="mb-0 flex-1 min-w-0"
         >
           {actions}
         </PageHeader>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         {/* ── Left column ── */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-5">
           <ImageUploadCard
             businessLogo={businessLogo}
             setBusinessLogo={setBusinessLogo}
@@ -99,7 +99,7 @@ export function CampaignFormPage() {
         </div>
 
         {/* ── Right sidebar ── */}
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           <LogisticsCard form={form} set={set} />
           <PayoutPreviewCard form={form} />
         </div>
@@ -114,13 +114,10 @@ export function CampaignFormPage() {
         </Button>
       </div>
 
-      {/* Mobile sticky bottom bar — sits above MobileNav */}
-      <div
-        className="fixed inset-x-0 z-50 flex gap-3 border-t border-slate-200 bg-white/90 backdrop-blur-lg px-4 py-3 sm:hidden"
-        style={{ bottom: 'var(--mobile-nav-height)' }}
-      >
-        <Button variant="outline" className="flex-1" onClick={() => navigate(-1)}>Cancel</Button>
-        <Button className="flex-1" onClick={handleSave}>
+      {/* Mobile sticky bottom bar — uses floating-mobile-cta for safe-area + nav offset */}
+      <div className="floating-mobile-cta flex gap-3 border-t border-slate-200 bg-white/90 backdrop-blur-lg px-4 py-3 sm:hidden">
+        <Button variant="outline" className="flex-1 h-11 text-sm" onClick={() => navigate(-1)}>Cancel</Button>
+        <Button className="flex-1 h-11 text-sm" onClick={handleSave}>
           <Save className="h-4 w-4" />
           {isEdit ? 'Save' : 'Create'}
         </Button>

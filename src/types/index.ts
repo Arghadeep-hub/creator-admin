@@ -231,6 +231,26 @@ export interface PayoutTransaction {
   processedBy?: string;
 }
 
+// ─── Pool / Fund Management ─────────────────────────────
+export interface PoolTransaction {
+  id: string;
+  type: 'deposit' | 'payout';
+  amount: number;
+  description: string;
+  performedBy: string;
+  performedByName: string;
+  timestamp: string;
+  balanceAfter: number;
+  relatedTxnId?: string;
+}
+
+export interface PoolSummary {
+  balance: number;
+  totalDeposited: number;
+  totalDisbursed: number;
+  totalAllocated: number;
+}
+
 // ─── Audit Log ──────────────────────────────────────────
 export interface AuditLogEntry {
   id: string;

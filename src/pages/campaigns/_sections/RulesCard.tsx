@@ -36,7 +36,7 @@ export function RulesCard({ rules, setRules }: Props) {
             />
             <button
               onClick={() => setRules(r => r.filter((_, idx) => idx !== i))}
-              className="text-slate-400 hover:text-red-500 cursor-pointer shrink-0"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 cursor-pointer transition-colors shrink-0"
             >
               <X className="h-4 w-4" />
             </button>

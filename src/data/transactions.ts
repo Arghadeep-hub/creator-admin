@@ -1,4 +1,4 @@
-import type { PayoutTransaction } from '@/types';
+import type { PayoutTransaction, PoolTransaction, PoolSummary } from '@/types';
 
 export const MOCK_TRANSACTIONS: PayoutTransaction[] = [
   // ── Locked (20) ────────────────────────────────────────
@@ -1057,5 +1057,118 @@ export const MOCK_TRANSACTIONS: PayoutTransaction[] = [
     processedAt: '2026-01-30T14:30:00Z',
     failureReason: 'Network timeout',
     processedBy: 'sa-001',
+  },
+];
+
+// ─── Pool Summary ───────────────────────────────────────
+export const MOCK_POOL: PoolSummary = {
+  balance: 500000,
+  totalDeposited: 750000,
+  totalDisbursed: 116730,
+  totalAllocated: 71470, // locked + processing amounts
+};
+
+// ─── Pool Ledger (Fund additions & disbursements) ───────
+export const MOCK_POOL_TRANSACTIONS: PoolTransaction[] = [
+  {
+    id: 'pool-001',
+    type: 'deposit',
+    amount: 200000,
+    description: 'Monthly campaign budget — March 2026',
+    performedBy: 'admin-001',
+    performedByName: 'Vikram Singh',
+    timestamp: '2026-03-01T09:00:00Z',
+    balanceAfter: 500000,
+  },
+  {
+    id: 'pool-002',
+    type: 'payout',
+    amount: 4800,
+    description: 'Bulk release — 3 creator payouts',
+    performedBy: 'sa-001',
+    performedByName: 'Rahul Mehta',
+    timestamp: '2026-02-28T16:30:00Z',
+    balanceAfter: 300000,
+    relatedTxnId: 'txn-070',
+  },
+  {
+    id: 'pool-003',
+    type: 'deposit',
+    amount: 150000,
+    description: 'Emergency top-up for Bombay Bistro campaign',
+    performedBy: 'admin-002',
+    performedByName: 'Sneha Patil',
+    timestamp: '2026-02-25T11:00:00Z',
+    balanceAfter: 304800,
+  },
+  {
+    id: 'pool-004',
+    type: 'payout',
+    amount: 12500,
+    description: 'Weekly batch release — 8 payouts',
+    performedBy: 'sa-002',
+    performedByName: 'Ananya Iyer',
+    timestamp: '2026-02-22T14:15:00Z',
+    balanceAfter: 154800,
+  },
+  {
+    id: 'pool-005',
+    type: 'deposit',
+    amount: 100000,
+    description: 'Initial campaign fund — February 2026',
+    performedBy: 'admin-001',
+    performedByName: 'Vikram Singh',
+    timestamp: '2026-02-01T10:00:00Z',
+    balanceAfter: 167300,
+  },
+  {
+    id: 'pool-006',
+    type: 'payout',
+    amount: 32700,
+    description: 'Bulk release — 15 creator payouts',
+    performedBy: 'sa-001',
+    performedByName: 'Rahul Mehta',
+    timestamp: '2026-01-28T17:00:00Z',
+    balanceAfter: 67300,
+  },
+  {
+    id: 'pool-007',
+    type: 'deposit',
+    amount: 100000,
+    description: 'Initial pool setup — January 2026',
+    performedBy: 'admin-001',
+    performedByName: 'Vikram Singh',
+    timestamp: '2026-01-15T09:30:00Z',
+    balanceAfter: 100000,
+  },
+  {
+    id: 'pool-008',
+    type: 'deposit',
+    amount: 75000,
+    description: 'Bonus budget for Wok This Way campaign',
+    performedBy: 'admin-002',
+    performedByName: 'Sneha Patil',
+    timestamp: '2026-02-10T13:45:00Z',
+    balanceAfter: 242300,
+  },
+  {
+    id: 'pool-009',
+    type: 'payout',
+    amount: 8900,
+    description: 'Individual release — high-priority creator',
+    performedBy: 'sa-001',
+    performedByName: 'Rahul Mehta',
+    timestamp: '2026-02-15T10:30:00Z',
+    balanceAfter: 233400,
+  },
+  {
+    id: 'pool-010',
+    type: 'deposit',
+    amount: 125000,
+    description: 'Q1 budget allocation from management',
+    performedBy: 'admin-001',
+    performedByName: 'Vikram Singh',
+    timestamp: '2026-02-18T09:00:00Z',
+    balanceAfter: 358400,
   },
 ];

@@ -14,14 +14,14 @@ const MAIN_TABS = [
   { label: 'Home',        icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Campaigns',   icon: Megaphone,       path: '/campaigns' },
   { label: 'Submissions', icon: Video,           path: '/submissions' },
-  { label: 'Payouts',     icon: Wallet,          path: '/payouts' },
+  { label: 'Profile',     icon: UserCircle,      path: '/profile' },
 ]
 
 const MORE_ITEMS = [
-  { label: 'Creators',    icon: Users,       path: '/creators' },
-  { label: 'Leaderboard', icon: Trophy,      path: '/leaderboard' },
-  { label: 'Reports',     icon: BarChart3,   path: '/reports' },
-  { label: 'Profile',     icon: UserCircle,  path: '/profile' },
+  { label: 'Creators',    icon: Users,     path: '/creators' },
+  { label: 'Payouts',     icon: Wallet,    path: '/payouts' },
+  { label: 'Leaderboard', icon: Trophy,    path: '/leaderboard' },
+  { label: 'Reports',     icon: BarChart3, path: '/reports' },
 ]
 
 const SA_ITEMS = [
@@ -72,7 +72,7 @@ export function MobileNav() {
                   <span
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-2xl transition-colors duration-200',
-                      active ? 'bg-orange-500/[0.12]' : 'group-active:bg-slate-100'
+                      active ? 'bg-orange-500/12' : 'group-active:bg-slate-100'
                     )}
                   >
                     <Icon
