@@ -1,3 +1,5 @@
+import { memo } from 'react'
+import { Briefcase } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,11 +13,16 @@ interface Props {
   set: SetField
 }
 
-export function BasicInfoCard({ form, set }: Props) {
+export const BasicInfoCard = memo(function BasicInfoCard({ form, set }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Basic Information</CardTitle>
+        <CardTitle className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+            <Briefcase className="h-3.5 w-3.5 text-primary" />
+          </div>
+          Basic Information
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -87,4 +94,4 @@ export function BasicInfoCard({ form, set }: Props) {
       </CardContent>
     </Card>
   )
-}
+})

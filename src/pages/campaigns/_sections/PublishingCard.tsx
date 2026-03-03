@@ -1,4 +1,5 @@
-import { Info } from 'lucide-react'
+import { memo } from 'react'
+import { Info, Send } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -11,11 +12,16 @@ interface Props {
   set: SetField
 }
 
-export function PublishingCard({ form, set }: Props) {
+export const PublishingCard = memo(function PublishingCard({ form, set }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Publishing</CardTitle>
+        <CardTitle className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
+            <Send className="h-3.5 w-3.5 text-blue-600" />
+          </div>
+          Publishing
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -47,4 +53,4 @@ export function PublishingCard({ form, set }: Props) {
       </CardContent>
     </Card>
   )
-}
+})

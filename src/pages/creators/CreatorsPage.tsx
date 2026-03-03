@@ -1,11 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, MapPin, Instagram, Users, UserCheck, Clock, AlertTriangle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import {
+  Search, MapPin, Instagram, Users, UserCheck, Clock,
+  AlertTriangle, ChevronRight, X, SlidersHorizontal,
+  Wallet, TrendingUp,
+} from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { TrustScoreGauge } from '@/components/shared/TrustScoreGauge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -27,6 +33,13 @@ const ACCOUNT_OPTIONS = [
 const CITY_OPTIONS = [
   { value: '', label: 'All Cities' },
   ...Array.from(new Set(MOCK_CREATORS.map(c => c.city))).map(c => ({ value: c, label: c })),
+]
+
+const STAT_CARDS = [
+  { key: 'total',      label: 'Total',       icon: Users,         color: 'text-primary',     bg: 'bg-orange-50',  ring: 'ring-orange-300',  filterKey: '' as const,       filterValue: '' },
+  { key: 'active',     label: 'Active',      icon: UserCheck,     color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-300', filterKey: 'status' as const, filterValue: 'active' },
+  { key: 'kycPending', label: 'KYC Pending', icon: Clock,         color: 'text-amber-600',   bg: 'bg-amber-50',   ring: 'ring-amber-300',   filterKey: 'kyc' as const,    filterValue: 'pending' },
+  { key: 'flagged',    label: 'Flagged',     icon: AlertTriangle, color: 'text-red-600',     bg: 'bg-red-50',     ring: 'ring-red-300',     filterKey: 'status' as const, filterValue: 'flagged' },
 ]
 
 export function CreatorsPage() {
@@ -56,155 +69,225 @@ export function CreatorsPage() {
     })
   }, [search, kycFilter, statusFilter, cityFilter])
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: MOCK_CREATORS.length,
     active: MOCK_CREATORS.filter(c => c.accountStatus === 'active').length,
     kycPending: MOCK_CREATORS.filter(c => c.kycStatus === 'pending').length,
     flagged: MOCK_CREATORS.filter(c => c.accountStatus === 'flagged').length,
+  }), [])
+
+  const handleStatClick = (filterKey: string, filterValue: string) => {
+    if (filterKey === 'status') {
+      setStatusFilter(prev => prev === filterValue ? '' : filterValue)
+      setKycFilter('')
+    } else if (filterKey === 'kyc') {
+      setKycFilter(prev => prev === filterValue ? '' : filterValue)
+      setStatusFilter('')
+    } else {
+      clearFilters()
+    }
   }
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Creators"
-        subtitle={`${stats.total} total creators`}
+        subtitle={`${stats.total} total · ${stats.active} active${stats.flagged > 0 ? ` · ${stats.flagged} flagged` : ''}`}
       />
 
-      {/* Stats Row — all cards are actionable filters */}
+      {/* Stat cards — tap to filter */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: 'Total', value: stats.total, icon: Users, iconColor: 'text-primary', iconBg: 'bg-orange-50', filterKey: '' as const, filterValue: '' },
-          { label: 'Active', value: stats.active, icon: UserCheck, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50', filterKey: 'status' as const, filterValue: 'active' },
-          { label: 'KYC Pending', value: stats.kycPending, icon: Clock, iconColor: 'text-amber-600', iconBg: 'bg-amber-50', filterKey: 'kyc' as const, filterValue: 'pending' },
-          { label: 'Flagged', value: stats.flagged, icon: AlertTriangle, iconColor: 'text-red-600', iconBg: 'bg-red-50', filterKey: 'status' as const, filterValue: 'flagged' },
-        ].map(s => {
+        {STAT_CARDS.map(s => {
           const Icon = s.icon
           const isActive =
             (s.filterKey === 'status' && statusFilter === s.filterValue) ||
             (s.filterKey === 'kyc' && kycFilter === s.filterValue)
+          const value = stats[s.key as keyof typeof stats]
 
           return (
             <button
-              key={s.label}
-              onClick={() => {
-                if (s.filterKey === 'status') {
-                  setStatusFilter(prev => prev === s.filterValue ? '' : s.filterValue)
-                  setKycFilter('')
-                } else if (s.filterKey === 'kyc') {
-                  setKycFilter(prev => prev === s.filterValue ? '' : s.filterValue)
-                  setStatusFilter('')
-                } else {
-                  clearFilters()
-                }
-              }}
+              key={s.key}
+              onClick={() => handleStatClick(s.filterKey, s.filterValue)}
               className={cn(
-                'admin-card p-4 text-left cursor-pointer hover:shadow-md transition-all flex items-center gap-3',
-                isActive && 'ring-2 ring-primary/30 shadow-md'
+                'admin-card p-4 text-left cursor-pointer transition-all active:scale-[0.97]',
+                'hover:shadow-md',
+                isActive ? `ring-2 ${s.ring} shadow-md` : 'ring-0'
               )}
             >
-              <div className={cn('rounded-lg p-2 shrink-0', s.iconBg)}>
-                <Icon className={cn('h-4 w-4', s.iconColor)} />
+              <div className={cn('inline-flex p-2 rounded-xl mb-3', s.bg)}>
+                <Icon className={cn('h-4 w-4', s.color)} />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className={cn('text-2xl font-bold num-font', s.iconColor)}>{s.value}</p>
-              </div>
+              <p className={cn('text-2xl font-bold num-font leading-none', s.color)}>{value}</p>
+              <p className="text-xs text-muted-foreground mt-1.5">{s.label}</p>
             </button>
           )
         })}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input placeholder="Search by name, email, or handle..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      <div className="space-y-3">
+        {/* Search bar — full width with inline clear */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            placeholder="Search by name, email, or handle…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-        <Select value={kycFilter} onValueChange={setKycFilter} options={KYC_OPTIONS} className="w-44" />
-        <Select value={statusFilter} onValueChange={setStatusFilter} options={ACCOUNT_OPTIONS} className="w-40" />
-        <Select value={cityFilter} onValueChange={setCityFilter} options={CITY_OPTIONS} className="w-40" />
+
+        {/* Mobile: horizontal scroll city chips */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 sm:hidden" style={{ scrollbarWidth: 'none' }}>
+          {CITY_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setCityFilter(opt.value)}
+              className={cn(
+                'shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all',
+                cityFilter === opt.value
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Desktop: select dropdowns */}
+        <div className="hidden sm:flex gap-2 items-center">
+          <SlidersHorizontal className="h-4 w-4 text-slate-400 shrink-0" />
+          <Select value={kycFilter} onValueChange={setKycFilter} options={KYC_OPTIONS} className="w-44 shrink-0" />
+          <Select value={statusFilter} onValueChange={setStatusFilter} options={ACCOUNT_OPTIONS} className="w-40 shrink-0" />
+          <Select value={cityFilter} onValueChange={setCityFilter} options={CITY_OPTIONS} className="w-40 shrink-0" />
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+              Clear all
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Results count + mobile clear */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} of {stats.total} creator{stats.total !== 1 ? 's' : ''}
+        </p>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-            Clear all
-          </Button>
+          <button onClick={clearFilters} className="text-xs font-medium text-primary sm:hidden">
+            Clear filters
+          </button>
         )}
       </div>
 
-      {/* Results count inline */}
-      <p className="text-sm text-muted-foreground">
-        Showing {filtered.length} of {stats.total} creator{stats.total !== 1 ? 's' : ''}
-      </p>
-
       {filtered.length === 0 ? (
         <EmptyState
+          icon={SlidersHorizontal}
           title="No creators found"
           description="Try adjusting your search or filters."
           actionLabel="Clear Filters"
           onAction={clearFilters}
         />
       ) : (
-        <div className="admin-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  {['Creator', 'City', 'Instagram', 'KYC', 'Trust', 'Earnings', 'Submissions', 'Status'].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map(creator => (
-                  <tr
-                    key={creator.id}
-                    className={cn(
-                      'hover:bg-slate-50/50 cursor-pointer transition-colors',
-                      creator.accountStatus === 'flagged' && 'bg-red-50/40 hover:bg-red-50/60'
-                    )}
-                    onClick={() => navigate(`/creators/${creator.id}`)}
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={creator.name} size="sm" />
-                        <div>
-                          <p className="font-medium">{creator.name}</p>
-                          <p className="text-xs text-muted-foreground">{creator.email}</p>
+        <div className="space-y-2.5">
+          {filtered.map(creator => (
+            <motion.div
+              key={creator.id}
+              whileTap={{ scale: 0.99 }}
+              transition={{ duration: 0.1 }}
+            >
+              <div
+                onClick={() => navigate(`/creators/${creator.id}`)}
+                className={cn(
+                  'admin-card cursor-pointer transition-all',
+                  'hover:shadow-md hover:border-border',
+                  creator.accountStatus === 'flagged' && 'border-red-200 bg-red-50/30'
+                )}
+              >
+                {/* Card body */}
+                <div className="p-4">
+                  {/* Row 1: Avatar + name/handle + status */}
+                  <div className="flex items-start gap-3">
+                    <Avatar name={creator.name} size="md" className="shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-semibold text-sm leading-tight">{creator.name}</p>
+                            {creator.accountStatus === 'flagged' && (
+                              <Badge variant="error" className="text-[10px] px-1.5 py-0">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                Flagged
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{creator.email}</p>
                         </div>
+                        <StatusBadge status={creator.accountStatus} className="shrink-0" />
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-                        <MapPin className="h-3.5 w-3.5" />{creator.city}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-xs font-medium">{creator.instagramHandle}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Instagram className="h-3 w-3" />{formatNumber(creator.instagramFollowers)}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={creator.kycStatus} />
-                    </td>
-                    <td className="py-3 px-4">
-                      <TrustScoreGauge score={creator.trustScore} size="sm" showLabel={false} />
-                    </td>
-                    <td className="py-3 px-4 num-font">
-                      <p className="font-semibold text-primary">{formatCurrency(creator.walletBalance)}</p>
-                      <p className="text-xs text-muted-foreground">{formatCurrency(creator.lifetimeEarnings)} lifetime</p>
-                    </td>
-                    <td className="py-3 px-4 num-font">
-                      <p>{creator.totalSubmissions}</p>
-                      <p className="text-xs text-emerald-600">{creator.approvedSubmissions} approved</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={creator.accountStatus} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+                      {/* Location + Instagram handle */}
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />{creator.city}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Instagram className="h-3 w-3" />{creator.instagramHandle}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Metric chips */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                      <Instagram className="h-3 w-3 text-pink-400" />
+                      {formatNumber(creator.instagramFollowers)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                      <TrendingUp className="h-3 w-3 text-slate-400" />
+                      {creator.instagramMetrics.avgEngagement}%
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                      <Wallet className="h-3 w-3 text-slate-400" />
+                      {formatCurrency(creator.lifetimeEarnings)}
+                    </span>
+                    <span className="inline-flex items-center text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                      {creator.approvedSubmissions}/{creator.totalSubmissions} approved
+                    </span>
+                    <StatusBadge status={creator.kycStatus} className="text-[10px]" />
+                  </div>
+                </div>
+
+                {/* Card footer: trust + earnings + chevron */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 bg-slate-50/50 rounded-b-xl">
+                  <div className="flex items-center gap-3">
+                    <TrustScoreGauge score={creator.trustScore} size="sm" showLabel={false} />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Trust Score</p>
+                      <p className="text-sm font-bold num-font">{creator.trustScore}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-base font-bold text-primary num-font">{formatCurrency(creator.walletBalance)}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">balance</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       )}
     </div>

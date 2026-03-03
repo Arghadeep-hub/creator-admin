@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Instagram, MapPin, Phone, Mail, Wallet, CheckCircle, XCircle, Shield, Star, Zap, Trophy } from 'lucide-react'
-import { PageHeader } from '@/components/shared/PageHeader'
+import { motion } from 'framer-motion'
+import {
+  ArrowLeft, Instagram, MapPin, Phone, Mail, Wallet, CheckCircle, XCircle,
+  Shield, Star, Zap, Trophy, ChevronRight, Eye, Heart, AlertTriangle,
+  Calendar, Clock, ExternalLink, Lock, TrendingUp, Video,
+} from 'lucide-react'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { TrustScoreGauge } from '@/components/shared/TrustScoreGauge'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -9,9 +13,8 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/contexts/ToastContext'
-import { formatCurrency, formatNumber } from '@/lib/utils'
+import { cn, formatCurrency, formatNumber, getRelativeTime } from '@/lib/utils'
 import { MOCK_CREATORS } from '@/data/creators'
 import { MOCK_SUBMISSIONS } from '@/data/submissions'
 
@@ -35,264 +38,526 @@ export function CreatorDetailPage() {
     return <EmptyState title="Creator not found" actionLabel="Back to Creators" onAction={() => navigate('/creators')} />
   }
 
+  const approvalRate = creator.totalSubmissions > 0
+    ? Math.round((creator.approvedSubmissions / creator.totalSubmissions) * 100)
+    : 0
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate('/creators')}>
+    <div className="space-y-4">
+
+      {/* Breadcrumb nav */}
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          onClick={() => navigate('/creators')}
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground active:scale-95 transition-all shrink-0"
+        >
           <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <PageHeader title={creator.name} subtitle={creator.instagramHandle} className="mb-0 flex-1">
+          <span className="text-sm font-medium">Creators</span>
+        </button>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 hidden sm:block" />
+        <span className="text-sm font-semibold text-foreground truncate min-w-0 hidden sm:block">
+          {creator.name}
+        </span>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           <StatusBadge status={creator.accountStatus} />
-          {creator.accountStatus !== 'flagged' ? (
-            <Button variant="destructive" size="sm" onClick={() => error('Creator flagged', creator.name)}>Flag Creator</Button>
-          ) : (
-            <Button variant="success" size="sm" onClick={() => success('Creator unflagged', creator.name)}>Unflag</Button>
-          )}
-        </PageHeader>
+          <StatusBadge status={creator.kycStatus} />
+        </div>
       </div>
 
-      {/* Summary Strip — key metrics at a glance, no duplication */}
-      <div className="admin-card p-5 flex flex-col sm:flex-row gap-5 items-start">
-        <Avatar name={creator.name} size="xl" />
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Wallet Balance</p>
-            <p className="text-xl font-bold num-font text-primary">{formatCurrency(creator.walletBalance)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">+{formatCurrency(creator.lockedEarnings)} locked</p>
+      {/* Profile hero card */}
+      <div className="admin-card overflow-hidden">
+        <div className="h-1 bg-linear-to-r from-orange-300 via-primary to-orange-300" />
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <Avatar name={creator.name} size="lg" className="shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="font-bold text-base leading-tight">{creator.name}</p>
+                {creator.accountStatus === 'flagged' && (
+                  <Badge variant="error" className="text-[10px] px-1.5 py-0">
+                    <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                    Flagged
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">{creator.instagramHandle}</p>
+              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />{creator.city}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />Joined {new Date(creator.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xl font-bold text-primary num-font">{formatCurrency(creator.walletBalance)}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">balance</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Lifetime Earnings</p>
-            <p className="text-xl font-bold num-font">{formatCurrency(creator.lifetimeEarnings)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{formatCurrency(creator.weeklyEarnings)} this week</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Submissions</p>
-            <p className="text-xl font-bold num-font">{creator.totalSubmissions}</p>
-            <p className="text-xs text-emerald-600">{creator.approvedSubmissions} approved · {creator.rejectedSubmissions} rejected</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <TrustScoreGauge score={creator.trustScore} size="md" />
+
+          {/* Metric chips */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/60 flex-wrap">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2.5 py-1">
+              <Instagram className="h-3 w-3 text-pink-400" />{formatNumber(creator.instagramFollowers)}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2.5 py-1">
+              <TrendingUp className="h-3 w-3 text-slate-400" />{creator.instagramMetrics.avgEngagement}% eng
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2.5 py-1">
+              <Video className="h-3 w-3 text-slate-400" />{creator.totalSubmissions} subs
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 rounded-full px-2.5 py-1">
+              <CheckCircle className="h-3 w-3" />{approvalRate}% approved
+            </span>
+
+            {/* Action button — pushed right */}
+            <div className="ml-auto">
+              {creator.accountStatus !== 'flagged' ? (
+                <Button variant="destructive" size="sm" onClick={() => error('Creator flagged', creator.name)} className="h-7 text-xs">
+                  Flag
+                </Button>
+              ) : (
+                <Button variant="success" size="sm" onClick={() => success('Creator unflagged', creator.name)} className="h-7 text-xs">
+                  Unflag
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Consolidated Tabs: Overview, Submissions, Earnings & Badges */}
+      {/* Key metrics strip — horizontal scroll on mobile */}
+      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 py-0.5 md:mx-0 md:grid md:grid-cols-4 md:px-0" style={{ scrollbarWidth: 'none' }}>
+        {[
+          { label: 'Wallet Balance', value: formatCurrency(creator.walletBalance), icon: Wallet, color: 'text-primary', bg: 'bg-orange-50' },
+          { label: 'Locked (72h)', value: formatCurrency(creator.lockedEarnings), icon: Lock, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Weekly Earnings', value: formatCurrency(creator.weeklyEarnings), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Lifetime Earnings', value: formatCurrency(creator.lifetimeEarnings), icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        ].map(metric => {
+          const Icon = metric.icon
+          return (
+            <div key={metric.label} className="admin-card p-4 min-w-35 shrink-0 md:min-w-0">
+              <div className={cn('inline-flex p-2 rounded-xl mb-2', metric.bg)}>
+                <Icon className={cn('h-4 w-4', metric.color)} />
+              </div>
+              <p className={cn('text-lg font-bold num-font leading-none', metric.color)}>{metric.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-1.5 uppercase tracking-wide">{metric.label}</p>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="submissions">Submissions ({submissions.length})</TabsTrigger>
-          <TabsTrigger value="earnings">Earnings & Badges</TabsTrigger>
-        </TabsList>
+        <div className="-mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="w-full justify-start overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="submissions">
+              Submissions
+              <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] num-font">{submissions.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="earnings">Earnings & Badges</TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* ── Overview: Contact + KYC + Instagram + Activation + Account ── */}
+        {/* Overview Tab */}
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Contact + Instagram — merged into one card */}
-            <Card>
-              <CardHeader><CardTitle>Contact & Social</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                {[
-                  { icon: Mail, label: 'Email', value: creator.email },
-                  { icon: Phone, label: 'Phone', value: creator.phone },
-                  { icon: MapPin, label: 'City', value: creator.city },
-                  { icon: Wallet, label: 'UPI ID', value: creator.upiId },
-                ].map(row => {
-                  const Icon = row.icon
-                  return (
-                    <div key={row.label} className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{row.label}</p>
-                        <p className="font-medium">{row.value}</p>
-                      </div>
-                    </div>
-                  )
-                })}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
 
-                {/* Instagram inline */}
-                <div className="border-t border-slate-100 pt-3 mt-3">
+            {/* Left column — 2 cols on desktop */}
+            <div className="lg:col-span-2 space-y-4">
+
+              {/* Contact & Social */}
+              <div className="admin-card overflow-hidden">
+                <div className="px-4 pt-4 pb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Contact & Social</h3>
+                </div>
+                <div className="px-4 pb-4 space-y-3 text-sm">
+                  {[
+                    { icon: Mail, label: 'Email', value: creator.email },
+                    { icon: Phone, label: 'Phone', value: creator.phone },
+                    { icon: MapPin, label: 'City', value: creator.city },
+                    { icon: Wallet, label: 'UPI ID', value: creator.upiId },
+                  ].map(row => {
+                    const Icon = row.icon
+                    return (
+                      <div key={row.label} className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                          <Icon className="h-4 w-4 text-slate-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{row.label}</p>
+                          <p className="font-medium truncate">{row.value}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Instagram section */}
+                <div className="border-t border-border/60 bg-slate-50/50 p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Instagram className="h-4 w-4 text-pink-500" />
-                    <span className="font-semibold text-sm">Instagram</span>
+                    <div className="h-7 w-7 rounded-lg bg-linear-to-br from-[#833AB4] via-[#C13584] to-[#F77737] flex items-center justify-center">
+                      <Instagram className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <span className="font-semibold text-sm">{creator.instagramHandle}</span>
                     {creator.instagramConnected
-                      ? <Badge variant="success">Connected</Badge>
-                      : <Badge variant="gray">Not Connected</Badge>
+                      ? <Badge variant="success" className="text-[10px]">Connected</Badge>
+                      : <Badge variant="gray" className="text-[10px]">Not Connected</Badge>
                     }
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Handle</p>
-                      <p className="font-medium">{creator.instagramHandle}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Followers</p>
-                      <p className="font-medium num-font">{formatNumber(creator.instagramFollowers)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Avg. Reach</p>
-                      <p className="font-medium num-font">{formatNumber(creator.instagramMetrics.avgReach)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Avg. Engagement</p>
-                      <p className="font-medium">{creator.instagramMetrics.avgEngagement}%</p>
-                    </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Followers', value: formatNumber(creator.instagramFollowers) },
+                      { label: 'Avg. Reach', value: formatNumber(creator.instagramMetrics.avgReach) },
+                      { label: 'Engagement', value: `${creator.instagramMetrics.avgEngagement}%` },
+                      { label: 'Reels Submitted', value: String(creator.instagramMetrics.totalReelsSubmitted) },
+                    ].map(m => (
+                      <div key={m.label}>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{m.label}</p>
+                        <p className="font-bold num-font text-sm mt-0.5">{m.value}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* KYC + Account Status — merged into one card */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    KYC Verification
-                    <StatusBadge status={creator.kycStatus} />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">PAN Number</p>
-                      <p className="font-mono font-medium mt-0.5">{creator.kycDocuments.panNumber}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Aadhaar (last 4)</p>
-                      <p className="font-mono font-medium mt-0.5">XXXX-XXXX-{creator.kycDocuments.aadhaarLast4}</p>
-                    </div>
-                  </div>
-                  {creator.kycStatus === 'pending' && (
-                    <div className="flex gap-2 pt-2">
-                      <Button className="flex-1" onClick={() => success('KYC verified', creator.name)}>Verify KYC</Button>
-                      <Button variant="destructive" className="flex-1" onClick={() => error('KYC rejected', creator.name)}>Reject</Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle>Account Status</CardTitle></CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Joined</span>
-                    <span className="font-medium">{new Date(creator.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Last Active</span>
-                    <span className="font-medium">{new Date(creator.lastActiveAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                  </div>
-                  {creator.flagReason && (
-                    <div className="bg-red-50 rounded-lg p-3 border border-red-100">
-                      <p className="text-xs font-semibold text-red-700">Flag Reason</p>
-                      <p className="text-xs text-red-600 mt-0.5">{creator.flagReason}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Activation Progress — full width */}
-            <Card className="lg:col-span-2">
-              <CardHeader><CardTitle>Activation Progress</CardTitle></CardHeader>
-              <CardContent>
+              {/* Activation Progress */}
+              <div className="admin-card p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium">{creator.activationProgress}% complete</span>
-                  <Badge variant={creator.activationProgress === 100 ? 'success' : 'warning'}>
-                    {creator.activationProgress === 100 ? 'Fully Activated' : 'Incomplete'}
+                  <h3 className="text-sm font-semibold text-foreground">Activation Progress</h3>
+                  <Badge variant={creator.activationProgress === 100 ? 'success' : 'warning'} className="text-[10px]">
+                    {creator.activationProgress === 100 ? 'Complete' : `${creator.activationProgress}%`}
                   </Badge>
                 </div>
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
-                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${creator.activationProgress}%` }} />
+                  <motion.div
+                    className={cn(
+                      'h-full rounded-full',
+                      creator.activationProgress === 100
+                        ? 'bg-linear-to-r from-emerald-500 to-emerald-400'
+                        : 'bg-linear-to-r from-orange-500 to-amber-500'
+                    )}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${creator.activationProgress}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  />
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {Object.entries(creator.activationStepsCompleted).map(([step, done]) => (
-                    <div key={step} className="flex items-center gap-2 text-sm">
+                    <div
+                      key={step}
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                        done ? 'bg-emerald-50/70' : 'bg-slate-50'
+                      )}
+                    >
                       {done
                         ? <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
                         : <XCircle className="h-4 w-4 text-slate-300 shrink-0" />
                       }
-                      <span className={done ? 'text-foreground' : 'text-muted-foreground'}>
+                      <span className={done ? 'text-foreground font-medium' : 'text-muted-foreground'}>
                         {step.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
                       </span>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            {/* Right column */}
+            <div className="space-y-4">
+
+              {/* Trust Score card */}
+              <div className="admin-card p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3">Trust Score</h3>
+                <div className="flex flex-col items-center gap-2">
+                  <TrustScoreGauge score={creator.trustScore} size="lg" />
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    {creator.trustScore >= 80 ? 'Excellent — Highly trustworthy' :
+                     creator.trustScore >= 60 ? 'Good — Reliable creator' :
+                     creator.trustScore >= 40 ? 'Fair — Needs monitoring' :
+                     'Poor — Requires review'}
+                  </p>
+                </div>
+              </div>
+
+              {/* KYC Verification */}
+              <div className={cn(
+                'admin-card overflow-hidden',
+                creator.kycStatus === 'pending' && 'ring-1 ring-amber-200',
+                creator.kycStatus === 'rejected' && 'ring-1 ring-red-200',
+              )}>
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                  <h3 className="text-sm font-semibold text-foreground">KYC Verification</h3>
+                  <StatusBadge status={creator.kycStatus} />
+                </div>
+                <div className="px-4 pb-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-slate-50 rounded-lg p-2.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">PAN</p>
+                      <p className="font-mono font-medium text-xs mt-0.5">{creator.kycDocuments.panNumber}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-2.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Aadhaar</p>
+                      <p className="font-mono font-medium text-xs mt-0.5">XXXX-{creator.kycDocuments.aadhaarLast4}</p>
+                    </div>
+                  </div>
+                  {creator.kycStatus === 'pending' && (
+                    <div className="flex gap-2">
+                      <Button className="flex-1 h-9" onClick={() => success('KYC verified', creator.name)}>
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Verify
+                      </Button>
+                      <Button variant="destructive" className="flex-1 h-9" onClick={() => error('KYC rejected', creator.name)}>
+                        <XCircle className="h-3.5 w-3.5" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Account Info */}
+              <div className="admin-card p-4 space-y-3 text-sm">
+                <h3 className="text-sm font-semibold text-foreground">Account</h3>
+                <div className="space-y-2.5">
+                  {[
+                    { label: 'Joined', value: new Date(creator.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }), icon: Calendar },
+                    { label: 'Last Active', value: getRelativeTime(creator.lastActiveAt), icon: Clock },
+                    ...(creator.assignedAdmin ? [{ label: 'Assigned Admin', value: creator.assignedAdmin, icon: Shield }] : []),
+                  ].map(row => {
+                    const Icon = row.icon
+                    return (
+                      <div key={row.label} className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <Icon className="h-3.5 w-3.5" />{row.label}
+                        </span>
+                        <span className="font-medium">{row.value}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                {creator.flagReason && (
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-100 mt-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                      <p className="text-xs font-semibold text-red-700">Flag Reason</p>
+                    </div>
+                    <p className="text-xs text-red-600">{creator.flagReason}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </TabsContent>
 
-        {/* ── Submissions ── */}
+        {/* Submissions Tab */}
         <TabsContent value="submissions">
           {submissions.length === 0 ? (
-            <EmptyState title="No submissions yet" />
+            <EmptyState
+              icon={Video}
+              title="No submissions yet"
+              description="This creator hasn't submitted any content yet."
+            />
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {submissions.map(sub => (
-                <div
+                <motion.div
                   key={sub.id}
-                  className="admin-card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/submissions/${sub.id}`)}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ duration: 0.1 }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{sub.campaignName}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(sub.submittedAt).toLocaleDateString('en-IN')}</p>
+                  <div
+                    onClick={() => navigate(`/submissions/${sub.id}`)}
+                    className={cn(
+                      'admin-card cursor-pointer transition-all',
+                      'hover:shadow-md hover:border-border',
+                      sub.fraudFlags.length > 0 && 'border-red-200 bg-red-50/30'
+                    )}
+                  >
+                    <div className="p-4">
+                      {/* Campaign name + status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-semibold text-sm leading-tight">{sub.campaignName}</p>
+                            {sub.fraudFlags.length > 0 && (
+                              <Badge variant="error" className="text-[10px] px-1.5 py-0">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                {sub.fraudFlags.length}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Submitted {getRelativeTime(sub.submittedAt)}
+                          </p>
+                        </div>
+                        <StatusBadge status={sub.status} className="shrink-0" />
+                      </div>
+
+                      {/* Metric chips */}
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                          <Eye className="h-3 w-3 text-slate-400" />
+                          {formatNumber(sub.metricsCurrent.views)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                          <Heart className="h-3 w-3 text-slate-400" />
+                          {formatNumber(sub.metricsCurrent.likes)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium">
+                          <Trophy className="h-3 w-3 text-slate-400" />
+                          #{sub.ranking}/{sub.totalRankEntries}
+                        </span>
+                        <span className="inline-flex items-center text-[11px] text-slate-600 bg-slate-100 rounded-full px-2.5 py-1 font-medium uppercase tracking-wide">
+                          {sub.verificationStage}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card footer */}
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 bg-slate-50/50 rounded-b-xl">
+                      <p className="text-base font-bold text-primary num-font">{formatCurrency(sub.projectedPayout)}</p>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <a
+                          href={sub.reelUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />Reel
+                        </a>
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold num-font text-primary">{formatCurrency(sub.projectedPayout)}</p>
-                    <p className="text-xs text-muted-foreground">{formatNumber(sub.metricsCurrent.views)} views</p>
-                  </div>
-                  <StatusBadge status={sub.status} />
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
         </TabsContent>
 
-        {/* ── Earnings & Badges (merged) ── */}
+        {/* Earnings & Badges Tab */}
         <TabsContent value="earnings">
           <div className="space-y-6">
+
             {/* Earnings breakdown */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Wallet Balance', value: formatCurrency(creator.walletBalance), color: 'text-primary' },
-                { label: 'Locked (72h)', value: formatCurrency(creator.lockedEarnings), color: 'text-amber-600' },
-                { label: 'Weekly Earnings', value: formatCurrency(creator.weeklyEarnings), color: 'text-blue-600' },
-                { label: 'Lifetime Earnings', value: formatCurrency(creator.lifetimeEarnings), color: 'text-slate-700' },
-              ].map(e => (
-                <div key={e.label} className="admin-card p-4">
-                  <p className="text-xs text-muted-foreground">{e.label}</p>
-                  <p className={`text-xl font-bold num-font mt-1 ${e.color}`}>{e.value}</p>
-                </div>
-              ))}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Earnings Breakdown</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'Wallet Balance', value: formatCurrency(creator.walletBalance), icon: Wallet, color: 'text-primary', bg: 'bg-orange-50' },
+                  { label: 'Locked (72h)', value: formatCurrency(creator.lockedEarnings), icon: Lock, color: 'text-amber-600', bg: 'bg-amber-50' },
+                  { label: 'Weekly Earnings', value: formatCurrency(creator.weeklyEarnings), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { label: 'Lifetime', value: formatCurrency(creator.lifetimeEarnings), icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                ].map(e => {
+                  const Icon = e.icon
+                  return (
+                    <div key={e.label} className="admin-card p-4">
+                      <div className={cn('inline-flex p-1.5 rounded-lg mb-2', e.bg)}>
+                        <Icon className={cn('h-3.5 w-3.5', e.color)} />
+                      </div>
+                      <p className={cn('text-lg font-bold num-font leading-none', e.color)}>{e.value}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1.5 uppercase tracking-wide">{e.label}</p>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* Badges */}
+            {/* Submissions overview */}
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Milestone Badges</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Submissions Overview</h3>
+              <div className="admin-card p-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold num-font text-foreground">{creator.totalSubmissions}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1">Total</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold num-font text-emerald-600">{creator.approvedSubmissions}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1">Approved</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold num-font text-red-600">{creator.rejectedSubmissions}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-1">Rejected</p>
+                  </div>
+                </div>
+                {/* Approval rate bar */}
+                <div className="mt-4 pt-3 border-t border-border/60">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-muted-foreground">Approval Rate</span>
+                    <span className={cn(
+                      'font-bold num-font',
+                      approvalRate >= 70 ? 'text-emerald-600' : approvalRate >= 40 ? 'text-amber-600' : 'text-red-600'
+                    )}>{approvalRate}%</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div
+                      className={cn(
+                        'h-full rounded-full',
+                        approvalRate >= 70
+                          ? 'bg-linear-to-r from-emerald-500 to-emerald-400'
+                          : approvalRate >= 40
+                            ? 'bg-linear-to-r from-amber-500 to-amber-400'
+                            : 'bg-linear-to-r from-red-500 to-red-400'
+                      )}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${approvalRate}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Milestone Badges */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Milestone Badges</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {creator.milestoneBadges.map(badge => {
                   const Icon = BADGE_ICONS[badge.id] ?? Star
                   return (
-                    <div key={badge.id} className={`admin-card p-4 flex items-center gap-4 ${!badge.isUnlocked ? 'opacity-50 grayscale' : ''}`}>
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${badge.isUnlocked ? 'bg-amber-50' : 'bg-slate-100'}`}>
-                        <Icon className={`h-5 w-5 ${badge.isUnlocked ? 'text-amber-500' : 'text-slate-400'}`} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{badge.name}</p>
-                        {badge.isUnlocked && badge.earnedAt && (
-                          <p className="text-xs text-emerald-600">
-                            Earned {new Date(badge.earnedAt).toLocaleDateString('en-IN')}
-                          </p>
+                    <motion.div
+                      key={badge.id}
+                      whileHover={badge.isUnlocked ? { y: -2 } : undefined}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className={cn(
+                        'admin-card p-4 flex items-center gap-4 transition-all',
+                        badge.isUnlocked
+                          ? 'hover:shadow-md'
+                          : 'opacity-50 grayscale'
+                      )}>
+                        <div className={cn(
+                          'h-11 w-11 rounded-xl flex items-center justify-center shrink-0',
+                          badge.isUnlocked
+                            ? 'bg-linear-to-br from-amber-50 to-orange-50 ring-1 ring-amber-200'
+                            : 'bg-slate-100'
+                        )}>
+                          <Icon className={cn('h-5 w-5', badge.isUnlocked ? 'text-amber-500' : 'text-slate-400')} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm">{badge.name}</p>
+                          {badge.isUnlocked && badge.earnedAt ? (
+                            <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
+                              <CheckCircle className="h-3 w-3" />
+                              Earned {new Date(badge.earnedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Not yet unlocked</p>
+                          )}
+                        </div>
+                        {badge.isUnlocked && (
+                          <div className="h-6 w-6 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                            <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                          </div>
                         )}
-                        {!badge.isUnlocked && (
-                          <p className="text-xs text-muted-foreground">Not yet unlocked</p>
-                        )}
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>

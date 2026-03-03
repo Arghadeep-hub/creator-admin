@@ -1,29 +1,36 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Crown, Medal, TrendingUp, Users, Calendar, Settings } from 'lucide-react'
-import { PageHeader } from '@/components/shared/PageHeader'
-import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Trophy, Settings, Calendar } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/contexts/ToastContext'
-import { cn, formatCurrency } from '@/lib/utils'
 import { MOCK_LEADERBOARD_CONFIG, CURRENT_LEADERBOARD } from '@/data/leaderboard'
+
+// ── Above the fold — regular imports ──
+import { LeaderboardHero } from './_sections/LeaderboardHero'
+import { PodiumSection } from './_sections/PodiumSection'
+
+// ── Below the fold — lazy loaded ──
+const RankList = lazy(() => import('./_sections/RankList').then(m => ({ default: m.RankList })))
+const ConfigTab = lazy(() => import('./_sections/ConfigTab').then(m => ({ default: m.ConfigTab })))
+const SnapshotHistory = lazy(() => import('./_sections/SnapshotHistory').then(m => ({ default: m.SnapshotHistory })))
+
+function CardSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={`rounded-xl border border-slate-200 bg-white p-5 animate-pulse ${className ?? ''}`}>
+      <div className="h-4 w-1/3 rounded bg-slate-200 mb-4" />
+      <div className="space-y-2.5">
+        <div className="h-3 w-full rounded bg-slate-100" />
+        <div className="h-3 w-2/3 rounded bg-slate-100" />
+        <div className="h-3 w-4/5 rounded bg-slate-100" />
+      </div>
+    </div>
+  )
+}
 
 const WEEK_OPTIONS = MOCK_LEADERBOARD_CONFIG.weeklySnapshots.map((snap, i) => ({
   value: String(i),
   label: i === 0 ? `Current Week (${snap.weekStart})` : `Week of ${snap.weekStart}`,
 }))
-
-const TIER_STYLES: Record<string, { border: string; bg: string; icon: typeof Trophy }> = {
-  gold: { border: 'border-amber-300', bg: 'bg-amber-50', icon: Crown },
-  silver: { border: 'border-slate-300', bg: 'bg-slate-50', icon: Medal },
-  bronze: { border: 'border-amber-700/40', bg: 'bg-orange-50', icon: Trophy },
-}
-
-const RANK_ICONS = ['\u{1F947}', '\u{1F948}', '\u{1F949}']
 
 export function LeaderboardPage() {
   const navigate = useNavigate()
@@ -33,210 +40,63 @@ export function LeaderboardPage() {
 
   const selectedWeek = MOCK_LEADERBOARD_CONFIG.weeklySnapshots[Number(weekIdx)]
   const entries = selectedWeek?.entries ?? CURRENT_LEADERBOARD
-
   const podium = entries.slice(0, 3)
   const rest = entries.slice(3)
+  const topEarner = entries[0] ? { name: entries[0].creatorName, earnings: entries[0].weeklyEarnings } : null
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Leaderboard"
-        subtitle="Weekly creator rankings"
+    <div className="space-y-4 sm:space-y-5">
+
+      {/* ── Hero Banner ── */}
+      <LeaderboardHero
+        totalEntries={entries.length}
+        topEarner={topEarner}
+        weekLabel={selectedWeek?.weekStart ?? 'Current'}
+        weekIdx={weekIdx}
+        onWeekChange={setWeekIdx}
+        weekOptions={WEEK_OPTIONS}
       />
 
+      {/* ── Tabs ── */}
       <Tabs value={tab} onValueChange={setTab}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="config">Configuration</TabsTrigger>
-            <TabsTrigger value="history">Snapshots</TabsTrigger>
-          </TabsList>
-          {tab === 'leaderboard' && (
-            <Select value={weekIdx} onValueChange={setWeekIdx} options={WEEK_OPTIONS} className="w-52" />
-          )}
-        </div>
+        <TabsList className="bg-slate-100/80 border border-slate-200/60 rounded-2xl p-1 h-auto gap-0.5">
+          <TabsTrigger value="leaderboard" className="rounded-xl data-[state=active]:shadow-sm gap-1.5 text-xs">
+            <Trophy className="h-3.5 w-3.5" />Rankings
+          </TabsTrigger>
+          <TabsTrigger value="config" className="rounded-xl data-[state=active]:shadow-sm gap-1.5 text-xs">
+            <Settings className="h-3.5 w-3.5" />Configuration
+          </TabsTrigger>
+          <TabsTrigger value="history" className="rounded-xl data-[state=active]:shadow-sm gap-1.5 text-xs">
+            <Calendar className="h-3.5 w-3.5" />Snapshots
+          </TabsTrigger>
+        </TabsList>
 
-        {/* ── Leaderboard ── */}
-        <TabsContent value="leaderboard">
-          {/* Podium (Top 3) — stacks on mobile, 3-col on md+ */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            {[podium[1], podium[0], podium[2]].map((entry, podiumIdx) => {
-              if (!entry) return null
-              const visualRank = podiumIdx === 0 ? 2 : podiumIdx === 1 ? 1 : 3
-              const styles = TIER_STYLES[entry.tier]
-              const Icon = styles.icon
-              const heights: Record<number, string> = { 1: 'sm:pt-0', 2: 'sm:pt-6', 3: 'sm:pt-10' }
-
-              return (
-                <div
-                  key={entry.creatorId}
-                  className={cn('flex flex-col items-center', heights[visualRank])}
-                >
-                  <div
-                    className={cn(
-                      'relative w-full rounded-2xl border-2 p-4 flex flex-col items-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer',
-                      styles.border, styles.bg
-                    )}
-                    onClick={() => navigate(`/creators/${entry.creatorId}`)}
-                  >
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="text-2xl">{RANK_ICONS[visualRank - 1]}</span>
-                    </div>
-                    <Avatar name={entry.creatorName} size="lg" className="mt-2" />
-                    <p className="font-bold text-sm text-center leading-tight">{entry.creatorName}</p>
-                    <p className="text-primary font-bold num-font text-lg">{formatCurrency(entry.weeklyEarnings)}</p>
-                    <p className="text-xs text-muted-foreground">{entry.points} pts · {entry.submissions} reels</p>
-                    <div className="flex flex-wrap justify-center gap-1">
-                      {entry.badges.map(badge => (
-                        <Badge key={badge} variant="orange" className="text-xs">{badge}</Badge>
-                      ))}
-                    </div>
-                    <div className="absolute top-2 right-2">
-                      <Icon className={cn(
-                        'h-4 w-4',
-                        entry.tier === 'gold' ? 'text-amber-500' : entry.tier === 'silver' ? 'text-slate-400' : 'text-amber-700'
-                      )} />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Rest of leaderboard */}
-          <div className="space-y-2">
-            {rest.map(entry => (
-              <div
-                key={entry.creatorId}
-                className="admin-card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/creators/${entry.creatorId}`)}
-              >
-                <span className="text-lg font-bold num-font text-muted-foreground w-8 text-center shrink-0">#{entry.rank}</span>
-                <Avatar name={entry.creatorName} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{entry.creatorName}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                    <span>{entry.points} pts</span>
-                    <span>{entry.submissions} reels</span>
-                    {entry.badges.map(badge => (
-                      <Badge key={badge} variant="gray" className="text-xs">{badge}</Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <p className="font-bold num-font text-primary">{formatCurrency(entry.weeklyEarnings)}</p>
-                  <Badge
-                    variant={entry.tier === 'gold' ? 'warning' : entry.tier === 'silver' ? 'secondary' : 'gray'}
-                    className="capitalize"
-                  >
-                    {entry.tier}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+        {/* ── Rankings Tab ── */}
+        <TabsContent value="leaderboard" className="mt-5">
+          <div className="space-y-5">
+            <PodiumSection podium={podium} onViewCreator={id => navigate(`/creators/${id}`)} />
+            <Suspense fallback={<CardSkeleton className="min-h-40" />}>
+              <RankList entries={rest} onViewCreator={id => navigate(`/creators/${id}`)} />
+            </Suspense>
           </div>
         </TabsContent>
 
-        {/* ── Configuration ── */}
-        <TabsContent value="config">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-4 w-4" />Tier Settings</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                {MOCK_LEADERBOARD_CONFIG.tiers.map(tier => (
-                  <div key={tier.name} className="border border-slate-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-sm">{tier.name} Tier</p>
-                      <Badge variant={tier.name === 'Gold' ? 'warning' : tier.name === 'Silver' ? 'secondary' : 'gray'}>
-                        {tier.payoutMultiplier}x payout
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>Ranks: {tier.rankRange.min}–{tier.rankRange.max ?? '\u221E'}</span>
-                      <span>Min Weekly: {formatCurrency(tier.minWeeklyEarnings)}</span>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-4 w-4" />Reset Settings</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reset Day</span>
-                  <span className="font-medium capitalize">{MOCK_LEADERBOARD_CONFIG.resetDay}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reset Time</span>
-                  <span className="font-medium">{MOCK_LEADERBOARD_CONFIG.resetTime} {MOCK_LEADERBOARD_CONFIG.timezone}</span>
-                </div>
-                <div className="border-t pt-3">
-                  <p className="text-xs text-muted-foreground mb-2">Auto-assigned Badges</p>
-                  <div className="space-y-1.5">
-                    {MOCK_LEADERBOARD_CONFIG.badgeTypes.map(b => (
-                      <div key={b.name} className="flex items-center justify-between">
-                        <span>{b.name}</span>
-                        <Badge variant="gray" className="text-xs">{b.criteria}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Button className="w-full mt-2" onClick={() => success('Leaderboard config saved')}>
-                  Save Configuration
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+        {/* ── Configuration Tab ── */}
+        <TabsContent value="config" className="mt-5">
+          <Suspense fallback={<CardSkeleton className="min-h-60" />}>
+            <ConfigTab config={MOCK_LEADERBOARD_CONFIG} onSave={() => success('Leaderboard config saved')} />
+          </Suspense>
         </TabsContent>
 
-        {/* ── History ── */}
-        <TabsContent value="history">
-          <div className="space-y-4">
-            {MOCK_LEADERBOARD_CONFIG.weeklySnapshots.map((snap, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between text-base flex-wrap gap-2">
-                    <span>{i === 0 ? 'Current' : ''} Week of {snap.weekStart}</span>
-                    <Badge variant={i === 0 ? 'success' : 'gray'}>{i === 0 ? 'Active' : 'Archived'}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                    {snap.entries.slice(0, 3).map((e) => (
-                      <div
-                        key={e.creatorId}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded-lg p-1 -m-1 transition-colors"
-                        onClick={() => navigate(`/creators/${e.creatorId}`)}
-                      >
-                        <span className="text-lg">{RANK_ICONS[e.rank - 1]}</span>
-                        <div>
-                          <p className="font-medium text-xs leading-tight">{e.creatorName}</p>
-                          <p className="text-xs text-primary num-font">{formatCurrency(e.weeklyEarnings)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />{snap.entries.length} creators ranked</span>
-                    <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />
-                      Top earnings: {formatCurrency(snap.entries[0]?.weeklyEarnings ?? 0)}
-                    </span>
-                    {i !== 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs ml-auto"
-                        onClick={() => { setWeekIdx(String(i)); setTab('leaderboard') }}
-                      >
-                        View full ranking
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* ── Snapshots Tab ── */}
+        <TabsContent value="history" className="mt-5">
+          <Suspense fallback={<CardSkeleton className="min-h-60" />}>
+            <SnapshotHistory
+              snapshots={MOCK_LEADERBOARD_CONFIG.weeklySnapshots}
+              onViewWeek={idx => { setWeekIdx(String(idx)); setTab('leaderboard') }}
+              onViewCreator={id => navigate(`/creators/${id}`)}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
