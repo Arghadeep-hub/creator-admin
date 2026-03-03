@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { ImagePlus, Link, MapPin, Upload, X } from 'lucide-react'
+import { memo, useRef, useState } from 'react'
+import { Camera, ImagePlus, Link, MapPin, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,7 +13,7 @@ interface Props {
   city: string
 }
 
-export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessName, city }: Props) {
+export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessName, city }: Props) {
   const [imageMode, setImageMode] = useState<'upload' | 'url'>(businessLogo ? 'url' : 'upload')
   const [urlInput, setUrlInput]   = useState(businessLogo)
   const [isDragging, setIsDragging] = useState(false)
@@ -47,20 +47,25 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <CardTitle>Campaign Image</CardTitle>
-          <div className="flex rounded-lg border border-slate-200 p-0.5 gap-0.5">
+        <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <CardTitle className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50">
+              <Camera className="h-3.5 w-3.5 text-rose-600" />
+            </div>
+            Campaign Image
+          </CardTitle>
+          <div className="grid grid-cols-2 sm:flex rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1">
             {(['upload', 'url'] as const).map(mode => (
               <button
                 key={mode}
                 onClick={() => setImageMode(mode)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 sm:py-1 text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2.5 sm:py-1.5 text-sm sm:text-xs font-medium transition-all cursor-pointer ${
                   imageMode === mode
-                    ? 'bg-slate-900 text-white shadow-sm'
+                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/60'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {mode === 'upload' ? <Upload className="h-3 w-3" /> : <Link className="h-3 w-3" />}
+                {mode === 'upload' ? <Upload className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> : <Link className="h-4 w-4 sm:h-3.5 sm:w-3.5" />}
                 {mode === 'upload' ? 'Upload file' : 'Paste URL'}
               </button>
             ))}
@@ -70,7 +75,7 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
 
       <CardContent className="space-y-4">
         {/* Preview */}
-        <div className="relative h-40 sm:h-48 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+        <div className="relative h-44 sm:h-48 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
           {businessLogo ? (
             <>
               <img
@@ -80,7 +85,7 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
                 onError={clearImage}
               />
               <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-slate-900/20 to-transparent" />
-              <div className="absolute bottom-3 left-3 right-10">
+              <div className="absolute bottom-3.5 left-3.5 right-12">
                 <p className="truncate text-sm font-semibold text-white">{name || 'Campaign name'}</p>
                 <p className="flex items-center gap-1 text-xs text-white/70 mt-0.5">
                   <MapPin className="h-3 w-3" />
@@ -89,15 +94,20 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
               </div>
               <button
                 onClick={clearImage}
-                className="absolute right-2 top-2 flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70 transition-colors"
+                className="absolute right-2.5 top-2.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
               >
-                <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             </>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
-              <ImagePlus className="h-8 w-8" />
-              <p className="text-xs">No image — preview will appear here</p>
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm border border-slate-100">
+                <ImagePlus className="h-7 w-7 text-slate-300" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-slate-500">No image yet</p>
+                <p className="text-xs text-slate-400 mt-0.5">Upload or paste a URL below</p>
+              </div>
             </div>
           )}
         </div>
@@ -108,20 +118,20 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-4 sm:px-6 py-6 sm:py-8 text-center transition-colors ${
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-4 sm:px-6 py-7 sm:py-8 text-center transition-all ${
               isDragging
-                ? 'border-primary bg-orange-50'
-                : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'
+                ? 'border-primary bg-orange-50/60 scale-[0.99]'
+                : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'
             }`}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
-              <Upload className={`h-5 w-5 ${isDragging ? 'text-primary' : 'text-slate-400'}`} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100">
+              <Upload className={`h-5 w-5 transition-colors ${isDragging ? 'text-primary' : 'text-slate-400'}`} />
             </div>
             <div>
               <p className="text-sm font-medium text-slate-700">
-                {isDragging ? 'Drop to upload' : 'Drag & drop or click to browse'}
+                {isDragging ? 'Drop to upload' : 'Tap to browse or drag & drop'}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">PNG, JPG, WebP — max 5 MB</p>
+              <p className="mt-1 text-xs text-slate-400">PNG, JPG, WebP — max 5 MB</p>
             </div>
             <input
               ref={fileInputRef}
@@ -132,7 +142,7 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
             />
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label>Image URL</Label>
             <div className="flex gap-2">
               <Input
@@ -141,7 +151,7 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
                 placeholder="https://example.com/image.jpg"
                 onKeyDown={e => e.key === 'Enter' && applyUrl()}
               />
-              <Button variant="outline" onClick={applyUrl} disabled={!urlInput.trim()}>
+              <Button variant="outline" onClick={applyUrl} disabled={!urlInput.trim()} className="rounded-xl shrink-0">
                 Apply
               </Button>
             </div>
@@ -153,4 +163,4 @@ export function ImageUploadCard({ businessLogo, setBusinessLogo, name, businessN
       </CardContent>
     </Card>
   )
-}
+})

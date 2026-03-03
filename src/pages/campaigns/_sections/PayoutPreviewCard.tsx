@@ -1,3 +1,5 @@
+import { memo } from 'react'
+import { Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { INR } from './types'
@@ -7,61 +9,94 @@ interface Props {
   form: Pick<FormState, 'payoutMin' | 'payoutBase' | 'payoutMax' | 'bonusPerThousandViews' | 'status' | 'deadline'>
 }
 
-export function PayoutPreviewCard({ form }: Props) {
-  const max = Math.max(form.payoutMax, 1)
+export const PayoutPreviewCard = memo(function PayoutPreviewCard({ form }: Props) {
+  // Use the true maximum across all three values so nothing overflows
+  const scale = Math.max(form.payoutMax, form.payoutBase, form.payoutMin, 1)
+  const pct = (v: number) => Math.max(0, Math.min((v / scale) * 100, 100))
+
+  const minPct   = pct(form.payoutMin)
+  const basePct  = pct(form.payoutBase)
+  const maxPct   = pct(form.payoutMax)
+  const rangePct = Math.max(maxPct - minPct, 0)
 
   return (
-    <Card className="lg:sticky lg:top-20">
+    <Card className="lg:sticky lg:top-20 overflow-hidden">
+      <div className="h-1 bg-linear-to-r from-primary via-amber-400 to-primary" />
       <CardHeader>
-        <CardTitle>Payout Preview</CardTitle>
+        <CardTitle className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+          </div>
+          Payout Preview
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-2">
+      <CardContent className="space-y-4">
+        {/* Prominent base payout */}
+        <div className="rounded-xl bg-linear-to-br from-primary/5 via-orange-50/80 to-amber-50/60 border border-primary/10 p-4 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Base Payout</p>
+          <p className="text-2xl sm:text-xl font-bold text-primary num-font">{INR.format(form.payoutBase)}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Guaranteed per creator</p>
+        </div>
+
+        {/* Min / Max / Bonus breakdown */}
+        <div className="space-y-2.5">
           {[
-            { label: 'Minimum',          value: INR.format(form.payoutMin),  className: 'text-slate-700' },
-            { label: 'Base (guaranteed)',value: INR.format(form.payoutBase), className: 'font-semibold text-primary text-base' },
-            { label: 'Maximum',          value: INR.format(form.payoutMax),  className: 'text-slate-700' },
+            { label: 'Minimum', value: INR.format(form.payoutMin) },
+            { label: 'Maximum', value: INR.format(form.payoutMax) },
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{row.label}</span>
-              <span className={`num-font ${row.className}`}>{row.value}</span>
+              <span className="num-font font-medium text-slate-700">{row.value}</span>
             </div>
           ))}
-          <div className="border-t pt-2 flex items-center justify-between text-sm">
+          <div className="border-t border-slate-100 pt-2.5 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Bonus / 1K views</span>
-            <span className="num-font font-medium text-emerald-600">
+            <span className="num-font font-semibold text-emerald-600">
               +{INR.format(form.bonusPerThousandViews)}
             </span>
           </div>
         </div>
 
         {/* Range visual */}
-        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1.5">
-          <div className="flex justify-between text-[11px] text-slate-500 font-medium uppercase tracking-wide">
-            <span>Min</span><span>Base</span><span>Max</span>
+        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3.5 space-y-2.5">
+          {/* Bar */}
+          <div className="relative h-2.5 rounded-full bg-slate-200">
+            {/* Filled range from min to max */}
+            <div
+              className="absolute h-full rounded-full bg-linear-to-r from-orange-400 to-orange-500 transition-all"
+              style={{ left: `${minPct}%`, width: `${rangePct}%` }}
+            />
+            {/* Base dot */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4.5 w-4.5 rounded-full bg-primary border-2 border-white shadow-md transition-all"
+              style={{ left: `${basePct}%` }}
+            />
           </div>
-          <div className="relative h-2 rounded-full bg-slate-200">
-            <div
-              className="absolute h-full rounded-full bg-linear-to-r from-orange-400 to-orange-600"
-              style={{
-                left:  `${(form.payoutMin / max) * 100}%`,
-                width: `${((form.payoutMax - form.payoutMin) / max) * 100}%`,
-              }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-primary border-2 border-white shadow-sm"
-              style={{ left: `calc(${(form.payoutBase / max) * 100}% - 7px)` }}
-            />
+
+          {/* Value labels — always readable as a flex row */}
+          <div className="flex items-center justify-between text-[11px] num-font">
+            <div className="text-slate-400">
+              <span className="font-semibold uppercase tracking-wide text-[10px]">Min </span>
+              {INR.format(form.payoutMin)}
+            </div>
+            <div className="text-primary font-semibold">
+              <span className="uppercase tracking-wide text-[10px]">Base </span>
+              {INR.format(form.payoutBase)}
+            </div>
+            <div className="text-slate-400 text-right">
+              <span className="font-semibold uppercase tracking-wide text-[10px]">Max </span>
+              {INR.format(form.payoutMax)}
+            </div>
           </div>
         </div>
 
         {/* Status + deadline */}
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-2.5 pt-0.5">
           <Badge
             className={
               form.status === 'active' ? 'bg-emerald-100 text-emerald-700'
               : form.status === 'paused' ? 'bg-amber-100 text-amber-700'
-              : 'bg-slate-200 text-slate-600'
+              : 'bg-slate-100 text-slate-600'
             }
           >
             {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
@@ -75,4 +110,4 @@ export function PayoutPreviewCard({ form }: Props) {
       </CardContent>
     </Card>
   )
-}
+})

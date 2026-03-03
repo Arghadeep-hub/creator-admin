@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Save, Key, Bell, Shield, Eye, EyeOff,
   CheckCircle2, AlertCircle, LogOut, Monitor, Globe,
-  MapPin, Phone, Building2, CalendarDays,
+  MapPin, Phone, Pencil, BadgeCheck,
 } from 'lucide-react'
 import { RoleBadge } from '@/components/shared/RoleBadge'
 import { Avatar } from '@/components/ui/avatar'
@@ -45,12 +45,12 @@ function PasswordInput({ id, value, onChange, placeholder }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? '••••••••'}
-        className="pr-10"
+        className="pr-10 h-10"
       />
       <button
         type="button" tabIndex={-1}
         onClick={() => setShow(s => !s)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
         aria-label={show ? 'Hide password' : 'Show password'}
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -72,6 +72,15 @@ const PRIORITY = {
   critical: { label: 'Critical', variant: 'error'     as const },
   high:     { label: 'High',     variant: 'warning'   as const },
   normal:   { label: 'Normal',   variant: 'secondary' as const },
+}
+
+// ── Section header ───────────────────────────────────────────────────────────
+function SectionIcon({ bg, children }: { bg: string; children: React.ReactNode }) {
+  return (
+    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${bg}`}>
+      {children}
+    </span>
+  )
 }
 
 // ── Page ────────────────────────────────────────────────────────────────────
@@ -125,141 +134,185 @@ export function ProfilePage() {
     : 'just now'
 
   return (
-    <div className="w-full space-y-4 pb-8">
+    <div className="w-full space-y-4 pb-10">
 
       {/* ══════════════════════════════════════════════════════
-          HERO CARD — Compact cover + avatar + meta
+          HERO CARD
          ══════════════════════════════════════════════════════ */}
       <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-        {/* Slim cover gradient */}
-        <div className="h-20 sm:h-24 bg-linear-to-br from-orange-400 via-rose-400 to-pink-500 relative">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+
+        {/* ── Cover banner — muted, professional ── */}
+        <div className="h-28 sm:h-36 bg-linear-to-br from-slate-800 via-slate-700 to-indigo-900 relative">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.25),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(0,0,0,0.15),transparent_55%)]" />
         </div>
 
-        <div className="px-5 pb-5">
-          {/* Avatar row — bleeds over cover */}
-          <div className="flex items-end gap-4 -mt-8">
-            <Avatar
-              name={session?.name ?? ''}
-              className="h-16 w-16 sm:h-20 sm:w-20 text-xl ring-[3px] ring-white shadow-md shrink-0"
-            />
-            <div className="flex-1 min-w-0 pb-0.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold tracking-tight truncate">{session?.name}</h2>
-                <RoleBadge role={session?.role ?? 'admin'} />
-              </div>
-              <p className="text-sm text-muted-foreground truncate">{session?.email}</p>
+        {/* ── Profile info ── */}
+        <div className="px-4 sm:px-6 pb-4 sm:pb-5">
+
+          {/* Avatar row — overlaps banner */}
+          <div className="flex justify-center sm:justify-start -mt-12 sm:-mt-14 mb-3 sm:mb-0">
+            <div className="relative">
+              <Avatar
+                name={session?.name ?? ''}
+                className="h-24 w-24 sm:h-28 sm:w-28 text-2xl sm:text-3xl ring-4 ring-white shadow-lg shrink-0"
+              />
+              {/* Online indicator */}
+              {adminData?.isActive && (
+                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-emerald-500 ring-[2.5px] ring-white" />
+              )}
             </div>
-            <Button variant="outline" size="sm" className="shrink-0 hidden sm:inline-flex" onClick={() => document.getElementById('prof-name')?.focus()}>
-              Edit Profile
-            </Button>
           </div>
 
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 pt-3 border-t border-slate-100">
-            {profile.department && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Building2 className="h-3 w-3 text-slate-400" />
-                {profile.department}
-              </span>
-            )}
-            {profile.phone && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Phone className="h-3 w-3 text-slate-400" />
-                {profile.phone}
-              </span>
-            )}
-            {adminData?.managedCities && adminData.managedCities.length > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3 text-slate-400" />
-                {adminData.managedCities.slice(0, 2).join(', ')}
-                {adminData.managedCities.length > 2 && ` +${adminData.managedCities.length - 2}`}
-              </span>
-            )}
-            {joinedDate && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CalendarDays className="h-3 w-3 text-slate-400" />
-                Joined {joinedDate}
-              </span>
-            )}
+          {/* Identity + actions — stacked mobile, side-by-side desktop */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 sm:-mt-8 sm:ml-32">
+
+            {/* Left: identity */}
+            <div className="text-center sm:text-left min-w-0 sm:pt-1">
+              {/* Name + role */}
+              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight leading-tight">{session?.name}</h2>
+                <RoleBadge role={session?.role ?? 'admin'} />
+              </div>
+
+              {/* Headline — department at company */}
+              {profile.department && (
+                <p className="text-[13px] text-muted-foreground mt-0.5">
+                  {profile.department} at <span className="font-medium text-foreground">TryTheMenu</span>
+                </p>
+              )}
+
+              {/* Location + contact */}
+              <div className="flex items-center justify-center sm:justify-start gap-x-3 gap-y-1 flex-wrap mt-2 text-xs text-muted-foreground">
+                {adminData?.managedCities && adminData.managedCities.length > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {adminData.managedCities.join(', ')}
+                  </span>
+                )}
+                {profile.phone && (
+                  <span className="inline-flex items-center gap-1">
+                    <Phone className="h-3 w-3 shrink-0" />
+                    {profile.phone}
+                  </span>
+                )}
+              </div>
+
+              {/* Email — verified indicator */}
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-1.5">
+                <a href={`mailto:${session?.email}`} className="text-xs text-indigo-600 hover:underline">
+                  {session?.email}
+                </a>
+                <BadgeCheck className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+              </div>
+
+              {/* Last active — security signal */}
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                {joinedDate && <>Joined {joinedDate} · </>}
+                Last active {lastLogin}
+              </p>
+            </div>
+
+            {/* Right: actions — labelled, functional */}
+            <div className="flex items-center gap-2 justify-center sm:justify-end shrink-0 pt-0 sm:pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs px-4 flex-1 sm:flex-initial"
+                onClick={() => document.getElementById('prof-name')?.focus()}
+              >
+                <Pencil className="h-3 w-3" />Edit Profile
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs px-4 flex-1 sm:flex-initial"
+                onClick={() => document.getElementById('section-security')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                <Key className="h-3 w-3" />Change Password
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          ROW 1: Edit Profile + Change Password (side by side)
+          ROW 1: Edit Profile + Change Password
          ══════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Edit Profile */}
         <Card id="section-profile">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-50">
-                <svg className="h-3.5 w-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-              </span>
+          <CardHeader className="px-4 sm:px-6 pb-3 pt-4 sm:pt-6">
+            <CardTitle className="flex items-center gap-2.5 text-sm font-semibold">
+              <SectionIcon bg="bg-orange-50">
+                <svg className="h-3.5 w-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </SectionIcon>
               Edit Profile
             </CardTitle>
             <CardDescription className="text-xs">Update your personal details.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="prof-name" className="text-xs">Full Name</Label>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+            {/* Stack on mobile, 2-col on sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="prof-name" className="text-xs font-medium">Full Name</Label>
                 <Input
                   id="prof-name"
                   value={profile.name}
                   onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
                   placeholder="Your full name"
-                  className="h-9 text-sm"
+                  className="h-10 text-sm"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="prof-email" className="text-xs">Email</Label>
-                  <span className="text-[10px] text-muted-foreground">Read-only</span>
+                  <Label htmlFor="prof-email" className="text-xs font-medium">Email</Label>
+                  <span className="text-[10px] text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded">Read-only</span>
                 </div>
                 <Input
                   id="prof-email"
                   value={profile.email}
                   readOnly
-                  className="h-9 text-sm bg-slate-50 text-muted-foreground cursor-not-allowed select-none"
+                  className="h-10 text-sm bg-slate-50 text-muted-foreground cursor-not-allowed select-none"
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="prof-phone" className="text-xs">Phone Number</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="prof-phone" className="text-xs font-medium">Phone Number</Label>
                 <Input
                   id="prof-phone"
                   value={profile.phone}
                   onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))}
                   placeholder="+91 98765 43210"
-                  className="h-9 text-sm"
+                  className="h-10 text-sm"
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="prof-dept" className="text-xs">Department</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="prof-dept" className="text-xs font-medium">Department</Label>
                 <Input
                   id="prof-dept"
                   value={profile.department}
                   onChange={e => setProfile(p => ({ ...p, department: e.target.value }))}
                   placeholder="e.g. Campaign Ops"
-                  className="h-9 text-sm"
+                  className="h-10 text-sm"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
               {isDirty ? (
                 <p className="text-[11px] text-amber-600 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />Unsaved changes
+                  <AlertCircle className="h-3 w-3 shrink-0" />Unsaved changes
                 </p>
               ) : (
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />Saved
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />Saved
                 </p>
               )}
-              <Button onClick={handleProfileSave} disabled={!isDirty || savingProfile} size="sm" className="h-8 text-xs">
-                {savingProfile ? 'Saving…' : <><Save className="h-3 w-3" />Save</>}
+              <Button onClick={handleProfileSave} disabled={!isDirty || savingProfile} size="sm" className="h-9 text-xs px-4">
+                {savingProfile ? 'Saving…' : <><Save className="h-3.5 w-3.5" />Save</>}
               </Button>
             </div>
           </CardContent>
@@ -267,28 +320,28 @@ export function ProfilePage() {
 
         {/* Change Password */}
         <Card id="section-security">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-50">
+          <CardHeader className="px-4 sm:px-6 pb-3 pt-4 sm:pt-6">
+            <CardTitle className="flex items-center gap-2.5 text-sm font-semibold">
+              <SectionIcon bg="bg-blue-50">
                 <Key className="h-3.5 w-3.5 text-blue-500" />
-              </span>
+              </SectionIcon>
               Change Password
             </CardTitle>
             <CardDescription className="text-xs">Use a strong, unique password.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="cur-pwd" className="text-xs">Current Password</Label>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="cur-pwd" className="text-xs font-medium">Current Password</Label>
               <PasswordInput id="cur-pwd" value={curPwd} onChange={setCurPwd} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="new-pwd" className="text-xs">New Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-pwd" className="text-xs font-medium">New Password</Label>
               <PasswordInput id="new-pwd" value={newPwd} onChange={setNewPwd} />
               {newPwd && (
-                <div className="space-y-0.5 mt-1">
-                  <div className="flex gap-0.5">
+                <div className="space-y-1 mt-1.5">
+                  <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(i => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-slate-200'}`} />
+                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-slate-200'}`} />
                     ))}
                   </div>
                   <p className="text-[10px] text-muted-foreground">
@@ -298,14 +351,14 @@ export function ProfilePage() {
                 </div>
               )}
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="conf-pwd" className="text-xs">Confirm Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="conf-pwd" className="text-xs font-medium">Confirm Password</Label>
               <PasswordInput id="conf-pwd" value={confPwd} onChange={setConfPwd} />
               {confPwd && (
-                <p className={`text-[10px] flex items-center gap-1 mt-0.5 ${passwordsMatch ? 'text-emerald-600' : 'text-red-500'}`}>
+                <p className={`text-[10px] flex items-center gap-1 mt-1 ${passwordsMatch ? 'text-emerald-600' : 'text-red-500'}`}>
                   {passwordsMatch
-                    ? <><CheckCircle2 className="h-3 w-3" />Passwords match</>
-                    : <><AlertCircle  className="h-3 w-3" />Passwords do not match</>
+                    ? <><CheckCircle2 className="h-3 w-3 shrink-0" />Passwords match</>
+                    : <><AlertCircle  className="h-3 w-3 shrink-0" />Passwords do not match</>
                   }
                 </p>
               )}
@@ -313,7 +366,7 @@ export function ProfilePage() {
             <Button
               onClick={handlePasswordChange}
               disabled={!curPwd || !newPwd || !confPwd || !passwordsMatch}
-              className="w-full h-9 text-sm"
+              className="w-full h-10 text-sm mt-1"
             >
               <Key className="h-3.5 w-3.5" />Update Password
             </Button>
@@ -322,45 +375,46 @@ export function ProfilePage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          ROW 2: Notifications + Security (side by side)
+          ROW 2: Notifications + Security
          ══════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Notifications */}
         <Card id="section-notifications">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-50">
+          <CardHeader className="px-4 sm:px-6 pb-3 pt-4 sm:pt-6">
+            <CardTitle className="flex items-center gap-2.5 text-sm font-semibold">
+              <SectionIcon bg="bg-amber-50">
                 <Bell className="h-3.5 w-3.5 text-amber-500" />
-              </span>
+              </SectionIcon>
               Notifications
             </CardTitle>
             <CardDescription className="text-xs">Choose which events trigger alerts.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-0">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="space-y-0 -mx-1">
               {NOTIF_ITEMS.map(item => {
                 const p = PRIORITY[item.priority]
                 return (
-                  <div key={item.key} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
-                    <div className="pr-3 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-semibold truncate">{item.label}</p>
-                        <Badge variant={p.variant} className="text-[9px] px-1.5 py-0 shrink-0">{p.label}</Badge>
+                  <div key={item.key} className="flex items-center justify-between px-1 py-3 border-b border-slate-50 last:border-0">
+                    <div className="pr-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-xs font-semibold">{item.label}</p>
+                        <Badge variant={p.variant} className="text-[9px] px-1.5 py-0 shrink-0 leading-4">{p.label}</Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.desc}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
                     </div>
                     <Switch
                       checked={notifs[item.key]}
                       onCheckedChange={v => setNotifs(s => ({ ...s, [item.key]: v }))}
+                      className="shrink-0"
                     />
                   </div>
                 )
               })}
             </div>
             <div className="pt-3">
-              <Button size="sm" className="h-8 text-xs" onClick={() => success('Preferences saved', 'Your notification settings have been updated.')}>
-                <Save className="h-3 w-3" />Save Preferences
+              <Button size="sm" className="h-9 text-xs" onClick={() => success('Preferences saved', 'Your notification settings have been updated.')}>
+                <Save className="h-3.5 w-3.5" />Save Preferences
               </Button>
             </div>
           </CardContent>
@@ -368,44 +422,44 @@ export function ProfilePage() {
 
         {/* Active Session + Sign Out */}
         <Card id="section-sessions">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50">
+          <CardHeader className="px-4 sm:px-6 pb-3 pt-4 sm:pt-6">
+            <CardTitle className="flex items-center gap-2.5 text-sm font-semibold">
+              <SectionIcon bg="bg-emerald-50">
                 <Shield className="h-3.5 w-3.5 text-emerald-600" />
-              </span>
+              </SectionIcon>
               Security
             </CardTitle>
             <CardDescription className="text-xs">Session info and account actions.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
             {/* Current session */}
-            <div className="flex items-start gap-2.5 p-3 border border-emerald-200 bg-emerald-50/40 rounded-lg">
+            <div className="flex items-start gap-3 p-3.5 border border-emerald-200 bg-emerald-50/40 rounded-xl">
               <div className="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 shrink-0 animate-pulse" />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="font-semibold text-xs text-emerald-800">Current Session</p>
-                  <Badge variant="success" className="text-[9px] px-1.5 py-0">Active</Badge>
+                  <Badge variant="success" className="text-[9px] px-1.5 py-0 leading-4">Active</Badge>
                 </div>
-                <p className="text-[11px] text-emerald-700 mt-0.5">Logged in {lastLogin}</p>
-                <div className="flex items-center gap-3 mt-1.5">
+                <p className="text-[11px] text-emerald-700 mt-0.5 leading-relaxed">Logged in {lastLogin}</p>
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <Monitor className="h-3 w-3" />Chrome on macOS
+                    <Monitor className="h-3 w-3 shrink-0" />Chrome on macOS
                   </span>
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <Globe className="h-3 w-3" />192.168.1.42
+                    <Globe className="h-3 w-3 shrink-0" />192.168.1.42
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Danger zone */}
-            <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-red-100 bg-red-50/30">
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-red-100 bg-red-50/30">
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-red-700">Sign out everywhere</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Revokes all device sessions.</p>
               </div>
-              <Button variant="destructive" size="sm" onClick={logout} className="shrink-0 h-8 text-xs">
-                <LogOut className="h-3 w-3" />Sign Out
+              <Button variant="destructive" size="sm" onClick={logout} className="shrink-0 h-9 text-xs px-3.5">
+                <LogOut className="h-3.5 w-3.5" />Sign Out
               </Button>
             </div>
           </CardContent>
