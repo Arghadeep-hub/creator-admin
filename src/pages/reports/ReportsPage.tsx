@@ -1,12 +1,16 @@
 import { lazy, Suspense, useState } from 'react'
 import { DollarSign, Users, AlertTriangle } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { PageLoader } from '@/components/ui/PageLoader'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { useToast } from '@/contexts/ToastContext'
 import {
-  CREATOR_GROWTH_DATA, SUBMISSION_WEEKLY_DATA,
-  KYC_DISTRIBUTION, CAMPAIGNS_BY_CITY,
-  FRAUD_TREND_DATA, FRAUD_TYPE_BREAKDOWN, ACTIVATION_FUNNEL_DATA,
-} from '@/data/chart-data'
+  useGetCreatorsReportQuery,
+  useGetSubmissionsReportQuery,
+  useGetRevenueReportQuery,
+  useGetFraudReportQuery,
+  useGetKycReportQuery,
+} from '@/store/api/reportsApi'
 
 // ── Above the fold — regular imports ──
 import { ReportsHero } from './_sections/ReportsHero'
@@ -53,29 +57,69 @@ function ChartRowSkeleton() {
   )
 }
 
+const DEFAULT_PERIOD = '30d' as const
+
 export function ReportsPage() {
   const [tab, setTab] = useState('overview')
   const { success } = useToast()
 
-  const latestCreatorData = CREATOR_GROWTH_DATA[CREATOR_GROWTH_DATA.length - 1]
-  const latestSubmissionData = SUBMISSION_WEEKLY_DATA[SUBMISSION_WEEKLY_DATA.length - 1]
-  const prevCreatorData = CREATOR_GROWTH_DATA[CREATOR_GROWTH_DATA.length - 2]
-  const creatorGrowthPct = prevCreatorData
-    ? (((latestCreatorData.new - prevCreatorData.new) / prevCreatorData.new) * 100).toFixed(0)
+  const { data: creatorsReport, isLoading: isCreatorsLoading, isError: isCreatorsError, refetch: refetchCreators } = useGetCreatorsReportQuery({ period: DEFAULT_PERIOD })
+  const { data: submissionsReport, isLoading: isSubmissionsLoading } = useGetSubmissionsReportQuery({ period: DEFAULT_PERIOD })
+  const { data: revenueReport, isLoading: isRevenueLoading } = useGetRevenueReportQuery({ period: DEFAULT_PERIOD })
+  const { data: fraudReport, isLoading: isFraudLoading } = useGetFraudReportQuery({ period: DEFAULT_PERIOD })
+  const { data: kycReport } = useGetKycReportQuery({ period: DEFAULT_PERIOD })
+
+  const isInitialLoading = isCreatorsLoading || isRevenueLoading || isSubmissionsLoading
+
+  if (isInitialLoading) return <PageLoader />
+  if (isCreatorsError) return (
+    <EmptyState
+      title="Failed to load reports"
+      description="Unable to fetch report data. Please try again."
+      actionLabel="Retry"
+      onAction={refetchCreators}
+    />
+  )
+
+  // Derive hero stats from API data
+  const totalPaid = revenueReport?.totalPaidOut ?? 0
+  const approvalRate = submissionsReport?.approvalRate ?? 0
+  const fraudRate = fraudReport?.fraudRatePercent ?? 0
+  const activationRate = creatorsReport?.activeCreators && creatorsReport?.totalCreators
+    ? Math.round((creatorsReport.activeCreators / creatorsReport.totalCreators) * 100)
+    : 0
+
+  // Overview tab data
+  const latestSubmissionData = {
+    total: submissionsReport?.totalSubmissions ?? 0,
+    approved: submissionsReport?.approvedSubmissions ?? 0,
+    rejected: submissionsReport?.rejectedSubmissions ?? 0,
+    approvalRate: submissionsReport?.approvalRate ?? 0,
+  }
+
+  // Platform tab data
+  const latestCreatorData = {
+    total: creatorsReport?.totalCreators ?? 0,
+    new: creatorsReport?.newCreators ?? 0,
+  }
+  const kycVerifiedCount = creatorsReport?.kycVerified ?? kycReport?.totalVerified ?? 0
+  const activeCampaigns = creatorsReport?.byCity?.reduce((s, c) => s + c.count, 0) ?? 0
+  const creatorGrowthPct = creatorsReport?.growthByMonth?.length && creatorsReport.growthByMonth.length >= 2
+    ? String(Math.round(((creatorsReport.growthByMonth[creatorsReport.growthByMonth.length - 1].new - creatorsReport.growthByMonth[creatorsReport.growthByMonth.length - 2].new) / (creatorsReport.growthByMonth[creatorsReport.growthByMonth.length - 2].new || 1)) * 100))
     : '0'
 
-  const currentFraudRate = FRAUD_TREND_DATA[FRAUD_TREND_DATA.length - 1].rate
-  const totalFraudCases = FRAUD_TYPE_BREAKDOWN.reduce((s, f) => s + f.count, 0)
-  const activationRate = ACTIVATION_FUNNEL_DATA[ACTIVATION_FUNNEL_DATA.length - 1].percent
+  // Integrity tab data
+  const currentFraudRate = fraudReport?.fraudRatePercent ?? 0
+  const totalFraudCases = fraudReport?.totalFraudFlags ?? 0
 
   return (
     <div className="space-y-4 sm:space-y-5">
 
       {/* ── Hero Banner ── */}
       <ReportsHero
-        totalPaid={12400000}
-        approvalRate={latestSubmissionData.approvalRate}
-        fraudRate={currentFraudRate}
+        totalPaid={totalPaid}
+        approvalRate={approvalRate}
+        fraudRate={fraudRate}
         activationRate={activationRate}
         onExport={() => success('Report exported')}
       />
@@ -97,10 +141,15 @@ export function ReportsPage() {
         {/* ── Overview Tab ── */}
         <TabsContent value="overview" className="mt-4">
           <div className="space-y-4">
-            <RevenueKpiCards totalPaid={12400000} monthlyPaid={1240000} avgPerCreator={5087} pendingRelease={185000} />
+            <RevenueKpiCards
+              totalPaid={revenueReport?.totalPaidOut ?? 0}
+              monthlyPaid={revenueReport?.byMonth?.[revenueReport.byMonth.length - 1]?.payouts ?? 0}
+              avgPerCreator={revenueReport?.avgPayoutPerCreator ?? 0}
+              pendingRelease={revenueReport?.totalLocked ?? 0}
+            />
 
             <Suspense fallback={<CardSkeleton className="h-72" />}>
-              <DailyPayoutsChart />
+              <DailyPayoutsChart revenueReport={revenueReport ?? null} />
             </Suspense>
 
             <Suspense fallback={<CardSkeleton className="h-20" />}>
@@ -108,7 +157,7 @@ export function ReportsPage() {
             </Suspense>
 
             <Suspense fallback={<CardSkeleton className="h-72" />}>
-              <WeeklySubmissionsChart />
+              <WeeklySubmissionsChart submissionsReport={submissionsReport ?? null} />
             </Suspense>
           </div>
         </TabsContent>
@@ -120,27 +169,27 @@ export function ReportsPage() {
               <CreatorKpiCards
                 latestCreatorData={latestCreatorData}
                 creatorGrowthPct={creatorGrowthPct}
-                kycVerifiedCount={KYC_DISTRIBUTION[0].count}
-                activeCampaigns={CAMPAIGNS_BY_CITY.reduce((s, c) => s + c.count, 0)}
+                kycVerifiedCount={kycVerifiedCount}
+                activeCampaigns={activeCampaigns}
               />
             </Suspense>
 
             <Suspense fallback={<ChartRowSkeleton />}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <CreatorGrowthChart />
-                <KycPieChart />
+                <CreatorGrowthChart creatorsReport={creatorsReport ?? null} />
+                <KycPieChart creatorsReport={creatorsReport ?? null} />
               </div>
             </Suspense>
 
             <Suspense fallback={<ChartRowSkeleton />}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <TrustScoreChart />
-                <CampaignsCityChart />
+                <TrustScoreChart creatorsReport={creatorsReport ?? null} />
+                <CampaignsCityChart creatorsReport={creatorsReport ?? null} />
               </div>
             </Suspense>
 
             <Suspense fallback={<CardSkeleton className="h-60" />}>
-              <SuccessRateCard />
+              <SuccessRateCard submissionsReport={submissionsReport ?? null} />
             </Suspense>
           </div>
         </TabsContent>
@@ -148,23 +197,27 @@ export function ReportsPage() {
         {/* ── Fraud & Funnel Tab ── */}
         <TabsContent value="integrity" className="mt-4">
           <div className="space-y-4">
-            <Suspense fallback={<CardSkeleton className="h-20" />}>
-              <FraudKpiCards
-                currentFraudRate={currentFraudRate}
-                totalFraudCases={totalFraudCases}
-                activationRate={activationRate}
-              />
-            </Suspense>
+            {isFraudLoading ? (
+              <CardSkeleton className="h-20" />
+            ) : (
+              <Suspense fallback={<CardSkeleton className="h-20" />}>
+                <FraudKpiCards
+                  currentFraudRate={currentFraudRate}
+                  totalFraudCases={totalFraudCases}
+                  activationRate={activationRate}
+                />
+              </Suspense>
+            )}
 
             <Suspense fallback={<ChartRowSkeleton />}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <FraudTrendChart />
-                <FraudBreakdownCard />
+                <FraudTrendChart fraudReport={fraudReport ?? null} />
+                <FraudBreakdownCard fraudReport={fraudReport ?? null} />
               </div>
             </Suspense>
 
             <Suspense fallback={<CardSkeleton className="h-80" />}>
-              <ActivationFunnelCard />
+              <ActivationFunnelCard creatorsReport={creatorsReport ?? null} />
             </Suspense>
           </div>
         </TabsContent>

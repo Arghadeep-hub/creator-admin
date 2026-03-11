@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { PageLoader } from '@/components/ui/PageLoader'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const LoginPage            = lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const DashboardPage        = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
@@ -33,23 +34,26 @@ function ScrollToTop() {
 
 /* ── Route guards ── */
 
-/** Redirect to /login if not authenticated. */
+/** Redirect to /login if not authenticated. Shows loader while auth is resolving. */
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return <PageLoader />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
 /** Redirect to /dashboard if already authenticated (e.g. login page). */
 const PublicOnlyRoute = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return <PageLoader />
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
 /** Redirect to /dashboard if authenticated but not a super_admin. */
 const SuperAdminRoute = ({ children }: { children: ReactNode }) => {
-  const { session } = useAuth()
+  const { session, isLoading } = useAuth()
+  if (isLoading) return <PageLoader />
   if (session?.role !== 'super_admin') return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
@@ -80,7 +84,9 @@ export default function App() {
                 path="/login"
                 element={
                   <PublicOnlyRoute>
-                    <LoginPage />
+                    <ErrorBoundary>
+                      <LoginPage />
+                    </ErrorBoundary>
                   </PublicOnlyRoute>
                 }
               />
@@ -90,36 +96,36 @@ export default function App() {
 
               {/* Protected routes — ProtectedRoute guards auth, AdminLayout renders shell */}
               <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
 
                 {/* Campaigns */}
-                <Route path="/campaigns" element={<CampaignsPage />} />
-                <Route path="/campaigns/new" element={<CampaignFormPage />} />
-                <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
-                <Route path="/campaigns/:id/edit" element={<CampaignFormPage />} />
+                <Route path="/campaigns" element={<ErrorBoundary><CampaignsPage /></ErrorBoundary>} />
+                <Route path="/campaigns/new" element={<ErrorBoundary><CampaignFormPage /></ErrorBoundary>} />
+                <Route path="/campaigns/:id" element={<ErrorBoundary><CampaignDetailPage /></ErrorBoundary>} />
+                <Route path="/campaigns/:id/edit" element={<ErrorBoundary><CampaignFormPage /></ErrorBoundary>} />
 
                 {/* Creators */}
-                <Route path="/creators" element={<CreatorsPage />} />
-                <Route path="/creators/:id" element={<CreatorDetailPage />} />
+                <Route path="/creators" element={<ErrorBoundary><CreatorsPage /></ErrorBoundary>} />
+                <Route path="/creators/:id" element={<ErrorBoundary><CreatorDetailPage /></ErrorBoundary>} />
 
                 {/* Submissions */}
-                <Route path="/submissions" element={<SubmissionsPage />} />
-                <Route path="/submissions/:id" element={<SubmissionDetailPage />} />
+                <Route path="/submissions" element={<ErrorBoundary><SubmissionsPage /></ErrorBoundary>} />
+                <Route path="/submissions/:id" element={<ErrorBoundary><SubmissionDetailPage /></ErrorBoundary>} />
 
                 {/* Payouts */}
-                <Route path="/payouts" element={<PayoutsPage />} />
+                <Route path="/payouts" element={<ErrorBoundary><PayoutsPage /></ErrorBoundary>} />
 
                 {/* Leaderboard */}
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route path="/leaderboard" element={<ErrorBoundary><LeaderboardPage /></ErrorBoundary>} />
 
                 {/* Super Admin only */}
-                <Route path="/admin-management" element={<SuperAdminRoute><AdminManagementPage /></SuperAdminRoute>} />
-                <Route path="/settings" element={<SuperAdminRoute><SettingsPage /></SuperAdminRoute>} />
-                <Route path="/audit-log" element={<SuperAdminRoute><AuditLogPage /></SuperAdminRoute>} />
+                <Route path="/admin-management" element={<SuperAdminRoute><ErrorBoundary><AdminManagementPage /></ErrorBoundary></SuperAdminRoute>} />
+                <Route path="/settings" element={<SuperAdminRoute><ErrorBoundary><SettingsPage /></ErrorBoundary></SuperAdminRoute>} />
+                <Route path="/audit-log" element={<SuperAdminRoute><ErrorBoundary><AuditLogPage /></ErrorBoundary></SuperAdminRoute>} />
 
                 {/* Reports + Profile */}
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/reports" element={<ErrorBoundary><ReportsPage /></ErrorBoundary>} />
+                <Route path="/profile" element={<ErrorBoundary><ProfilePage /></ErrorBoundary>} />
               </Route>
 
               {/* Default */}

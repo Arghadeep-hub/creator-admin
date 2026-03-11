@@ -8,33 +8,35 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { PageLoader } from '@/components/ui/PageLoader'
 import { useAuth } from '@/contexts/AuthContext'
 import { Shield } from 'lucide-react'
 import { getRelativeTime } from '@/lib/utils'
-import { MOCK_AUDIT_LOG } from '@/data/audit-log'
+import { useGetAuditLogQuery } from '@/store/api/auditLogApi'
+import type { AuditLogEntry } from '@/types'
 
-const SEVERITY_CONFIG = {
-  info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-50', label: 'Info' },
-  warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50', label: 'Warning' },
-  critical: { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50', label: 'Critical' },
+const SEVERITY_CONFIG: Record<string, { icon: typeof Info; color: string; bg: string; label: string }> = {
+  INFO:     { icon: Info,          color: 'text-blue-500',  bg: 'bg-blue-50',  label: 'Info' },
+  WARNING:  { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50', label: 'Warning' },
+  CRITICAL: { icon: AlertCircle,   color: 'text-red-500',   bg: 'bg-red-50',   label: 'Critical' },
 }
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'All Categories' },
-  { value: 'auth', label: 'Auth' },
-  { value: 'submission', label: 'Submission' },
-  { value: 'campaign', label: 'Campaign' },
-  { value: 'creator', label: 'Creator' },
-  { value: 'payout', label: 'Payout' },
-  { value: 'settings', label: 'Settings' },
-  { value: 'admin_mgmt', label: 'Admin Mgmt' },
+  { value: 'AUTH', label: 'Auth' },
+  { value: 'SUBMISSION', label: 'Submission' },
+  { value: 'CAMPAIGN', label: 'Campaign' },
+  { value: 'CREATOR', label: 'Creator' },
+  { value: 'PAYOUT', label: 'Payout' },
+  { value: 'SETTINGS', label: 'Settings' },
+  { value: 'ADMIN_MGMT', label: 'Admin Mgmt' },
 ]
 
 const SEVERITY_OPTIONS = [
   { value: '', label: 'All Severity' },
-  { value: 'info', label: 'Info' },
-  { value: 'warning', label: 'Warning' },
-  { value: 'critical', label: 'Critical' },
+  { value: 'INFO', label: 'Info' },
+  { value: 'WARNING', label: 'Warning' },
+  { value: 'CRITICAL', label: 'Critical' },
 ]
 
 export function AuditLogPage() {
@@ -42,6 +44,23 @@ export function AuditLogPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [severity, setSeverity] = useState('')
+
+  const { data: auditLogData, isLoading, refetch } = useGetAuditLogQuery({
+    page: 1,
+    limit: 200,
+    category: category ? (category as AuditLogEntry['category']) : undefined,
+    severity: severity ? (severity as AuditLogEntry['severity']) : undefined,
+  })
+
+  const allEntries = auditLogData?.data ?? []
+
+  const filtered = useMemo(() => {
+    if (!search) return allEntries
+    const q = search.toLowerCase()
+    return allEntries.filter(entry =>
+      entry.action.toLowerCase().includes(q) || entry.adminName.toLowerCase().includes(q)
+    )
+  }, [allEntries, search])
 
   if (session?.role !== 'super_admin') {
     return (
@@ -54,28 +73,25 @@ export function AuditLogPage() {
     )
   }
 
-  const filtered = useMemo(() => {
-    return MOCK_AUDIT_LOG.filter(entry => {
-      const q = search.toLowerCase()
-      if (q && !entry.action.toLowerCase().includes(q) && !entry.adminName.toLowerCase().includes(q)) return false
-      if (category && entry.category !== category) return false
-      if (severity && entry.severity !== severity) return false
-      return true
-    })
-  }, [search, category, severity])
+  if (isLoading) return <PageLoader />
+
+  const severityCounts: Record<string, number> = {
+    CRITICAL: allEntries.filter(e => e.severity === 'CRITICAL').length,
+    WARNING:  allEntries.filter(e => e.severity === 'WARNING').length,
+    INFO:     allEntries.filter(e => e.severity === 'INFO').length,
+  }
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Audit Log" subtitle={`${MOCK_AUDIT_LOG.length} entries`}>
+      <PageHeader title="Audit Log" subtitle={`${allEntries.length} entries`}>
         <Button variant="outline" size="sm"><Download className="h-4 w-4" />Export</Button>
       </PageHeader>
 
       {/* Severity Summary */}
       <div className="grid grid-cols-3 gap-3">
-        {(['critical', 'warning', 'info'] as const).map(s => {
+        {(['CRITICAL', 'WARNING', 'INFO'] as const).map(s => {
           const cfg = SEVERITY_CONFIG[s]
           const Icon = cfg.icon
-          const count = MOCK_AUDIT_LOG.filter(e => e.severity === s).length
           return (
             <button
               key={s}
@@ -87,7 +103,7 @@ export function AuditLogPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground capitalize">{s}</p>
-                <p className="text-xl font-bold num-font">{count}</p>
+                <p className="text-xl font-bold num-font">{severityCounts[s]}</p>
               </div>
             </button>
           )
@@ -107,7 +123,11 @@ export function AuditLogPage() {
       <p className="text-sm text-muted-foreground">{filtered.length} entries</p>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No entries found" actionLabel="Clear Filters" onAction={() => { setSearch(''); setCategory(''); setSeverity('') }} />
+        <EmptyState
+          title="No entries found"
+          actionLabel="Clear Filters"
+          onAction={() => { setSearch(''); setCategory(''); setSeverity(''); refetch() }}
+        />
       ) : (
         <div className="admin-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -121,7 +141,7 @@ export function AuditLogPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(entry => {
-                  const cfg = SEVERITY_CONFIG[entry.severity]
+                  const cfg = SEVERITY_CONFIG[entry.severity] ?? SEVERITY_CONFIG['INFO']
                   const Icon = cfg.icon
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">

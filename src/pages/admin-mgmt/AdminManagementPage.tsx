@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Mail, Shield, MoreVertical, CheckCircle, XCircle, Edit } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { PageLoader } from '@/components/ui/PageLoader'
 import { RoleBadge } from '@/components/shared/RoleBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Avatar } from '@/components/ui/avatar'
@@ -13,15 +14,25 @@ import { Select } from '@/components/ui/select'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { getRelativeTime } from '@/lib/utils'
-import { MOCK_ADMINS } from '@/data/admins'
+import {
+  useGetAdminUsersQuery,
+  useCreateAdminUserMutation,
+  useUpdateAdminStatusMutation,
+} from '@/store/api/adminUsersApi'
 
 export function AdminManagementPage() {
   const { session } = useAuth()
-  const { success } = useToast()
+  const { success, error } = useToast()
   const [inviteOpen, setInviteOpen] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState('admin')
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'SUPERADMIN'>('ADMIN')
+
+  const { data: adminsData, isLoading } = useGetAdminUsersQuery({ page: 1, limit: 100 })
+  const [createAdminUser, { isLoading: isInviting }] = useCreateAdminUserMutation()
+  const [updateAdminStatus] = useUpdateAdminStatusMutation()
+
+  const admins = adminsData?.data ?? []
 
   if (session?.role !== 'super_admin') {
     return (
@@ -34,9 +45,40 @@ export function AdminManagementPage() {
     )
   }
 
+  if (isLoading) return <PageLoader />
+
+  const deactivateAdmin = admins.find(a => a.id === deactivateTarget)
+
+  async function handleInvite() {
+    try {
+      await createAdminUser({
+        name: inviteEmail.split('@')[0],
+        email: inviteEmail,
+        password: 'TempPass@123',
+        role: inviteRole,
+      }).unwrap()
+      success('Invitation sent', inviteEmail)
+      setInviteOpen(false)
+      setInviteEmail('')
+    } catch {
+      error('Failed to send invitation')
+    }
+  }
+
+  async function handleToggleStatus() {
+    if (!deactivateTarget || !deactivateAdmin) return
+    try {
+      await updateAdminStatus({ id: deactivateTarget, body: { isActive: !deactivateAdmin.isActive } }).unwrap()
+      success(deactivateAdmin.isActive ? 'Admin deactivated' : 'Admin reactivated')
+      setDeactivateTarget(null)
+    } catch {
+      error('Failed to update admin status')
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <PageHeader title="Admin Management" subtitle={`${MOCK_ADMINS.length} admins on the platform`}>
+      <PageHeader title="Admin Management" subtitle={`${admins.length} admins on the platform`}>
         <Button onClick={() => setInviteOpen(true)}>
           <Plus className="h-4 w-4" />Invite Admin
         </Button>
@@ -45,10 +87,10 @@ export function AdminManagementPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Admins', value: MOCK_ADMINS.length },
-          { label: 'Super Admins', value: MOCK_ADMINS.filter(a => a.role === 'super_admin').length },
-          { label: 'Active', value: MOCK_ADMINS.filter(a => a.isActive).length },
-          { label: 'Inactive', value: MOCK_ADMINS.filter(a => !a.isActive).length },
+          { label: 'Total Admins', value: admins.length },
+          { label: 'Super Admins', value: admins.filter(a => a.role === 'SUPERADMIN').length },
+          { label: 'Active', value: admins.filter(a => a.isActive).length },
+          { label: 'Inactive', value: admins.filter(a => !a.isActive).length },
         ].map(s => (
           <div key={s.label} className="admin-card p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -69,7 +111,7 @@ export function AdminManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {MOCK_ADMINS.map(admin => (
+              {admins.map(admin => (
                 <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
@@ -90,7 +132,7 @@ export function AdminManagementPage() {
                       }
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-xs text-muted-foreground">{getRelativeTime(admin.lastLoginAt)}</td>
+                  <td className="py-3 px-4 text-xs text-muted-foreground">{admin.lastLoginAt ? getRelativeTime(admin.lastLoginAt) : 'Never'}</td>
                   <td className="py-3 px-4">
                     {admin.id !== session.userId && (
                       <DropdownMenu>
@@ -134,20 +176,16 @@ export function AdminManagementPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <Select value={inviteRole} onValueChange={setInviteRole} options={[
-                { value: 'admin', label: 'Admin' },
-                { value: 'super_admin', label: 'Super Admin' },
+              <Select value={inviteRole} onValueChange={v => setInviteRole(v as 'ADMIN' | 'SUPERADMIN')} options={[
+                { value: 'ADMIN', label: 'Admin' },
+                { value: 'SUPERADMIN', label: 'Super Admin' },
               ]} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={() => {
-              success('Invitation sent', inviteEmail)
-              setInviteOpen(false)
-              setInviteEmail('')
-            }} disabled={!inviteEmail}>
-              <Mail className="h-4 w-4" />Send Invite
+            <Button onClick={handleInvite} disabled={!inviteEmail || isInviting}>
+              <Mail className="h-4 w-4" />{isInviting ? 'Sending…' : 'Send Invite'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -156,11 +194,15 @@ export function AdminManagementPage() {
       <ConfirmDialog
         open={!!deactivateTarget}
         onOpenChange={open => !open && setDeactivateTarget(null)}
-        title="Deactivate Admin?"
-        description="This admin will no longer be able to log in. You can reactivate them later."
-        confirmLabel="Deactivate"
-        variant="destructive"
-        onConfirm={() => success('Admin deactivated')}
+        title={deactivateAdmin?.isActive ? 'Deactivate Admin?' : 'Reactivate Admin?'}
+        description={
+          deactivateAdmin?.isActive
+            ? 'This admin will no longer be able to log in. You can reactivate them later.'
+            : 'This admin will regain access to the platform.'
+        }
+        confirmLabel={deactivateAdmin?.isActive ? 'Deactivate' : 'Reactivate'}
+        variant={deactivateAdmin?.isActive ? 'destructive' : 'default'}
+        onConfirm={handleToggleStatus}
       />
     </div>
   )

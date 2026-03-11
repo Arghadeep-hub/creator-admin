@@ -107,7 +107,7 @@ export const PoolBalanceHero = memo(function PoolBalanceHero({
             </div>
           ))}
         </div>
-        {!isSuperAdmin && <Button size="sm" className="rounded-xl" onClick={onAddFunds}><Plus className="h-3.5 w-3.5" />Add Funds</Button>}
+        {isSuperAdmin && <Button size="sm" className="rounded-xl" onClick={onAddFunds}><Plus className="h-3.5 w-3.5" />Add Funds</Button>}
         {isSuperAdmin && stats.processingCount > 0 && (
           <Button size="sm" className="rounded-xl shadow-sm" onClick={() => onReleaseAll(processingTxns)}>
             <Send className="h-3.5 w-3.5" />Release All ({stats.processingCount})

@@ -1,17 +1,18 @@
 import { Badge } from '@/components/ui/badge'
 
 interface RoleBadgeProps {
-  role: 'super_admin' | 'admin'
+  role: 'SUPERADMIN' | 'ADMIN' | 'super_admin' | 'admin' // accept both API and normalized formats
   className?: string
 }
 
 export function RoleBadge({ role, className }: RoleBadgeProps) {
+  const isSuperAdmin = role === 'SUPERADMIN' || role === 'super_admin'
   return (
     <Badge
-      variant={role === 'super_admin' ? 'purple' : 'info'}
+      variant={isSuperAdmin ? 'purple' : 'info'}
       className={className}
     >
-      {role === 'super_admin' ? 'Super Admin' : 'Admin'}
+      {isSuperAdmin ? 'Super Admin' : 'Admin'}
     </Badge>
   )
 }

@@ -2,14 +2,20 @@ import { memo } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { CREATOR_GROWTH_DATA } from '@/data/chart-data'
 import { ChartCard, CHART_MARGIN, TOOLTIP_STYLE, TICK_PROPS } from '../reports.types'
+import type { CreatorsReport } from '@/store/api/reportsApi'
 
-export const CreatorGrowthChart = memo(function CreatorGrowthChart() {
+interface Props {
+  creatorsReport: CreatorsReport | null
+}
+
+export const CreatorGrowthChart = memo(function CreatorGrowthChart({ creatorsReport }: Props) {
+  const data = creatorsReport?.growthByMonth ?? []
+
   return (
     <ChartCard title="Creator Growth" subtitle="Total & new creators over time">
       <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={CREATOR_GROWTH_DATA} margin={CHART_MARGIN}>
+        <AreaChart data={data} margin={CHART_MARGIN}>
           <defs>
             <linearGradient id="creatorGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#f97316" stopOpacity={0.12} />

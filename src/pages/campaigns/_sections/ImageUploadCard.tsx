@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react'
-import { Camera, ImagePlus, Link, MapPin, Upload, X } from 'lucide-react'
+import { Camera, ImagePlus, Link, Loader2, MapPin, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,15 +17,19 @@ export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, set
   const [imageMode, setImageMode] = useState<'upload' | 'url'>(businessLogo ? 'url' : 'upload')
   const [urlInput, setUrlInput]   = useState(businessLogo)
   const [isDragging, setIsDragging] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function handleFileSelect(file: File) {
     if (!file.type.startsWith('image/')) return
+    setIsProcessing(true)
     const reader = new FileReader()
     reader.onload = e => {
       setBusinessLogo(e.target?.result as string)
       setUrlInput('')
+      setIsProcessing(false)
     }
+    reader.onerror = () => setIsProcessing(false)
     reader.readAsDataURL(file)
   }
 
@@ -43,6 +47,11 @@ export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, set
     setUrlInput('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
+
+  // Estimate image size from base64
+  const imageSizeKB = businessLogo && businessLogo.startsWith('data:')
+    ? Math.round((businessLogo.length * 3) / 4 / 1024)
+    : null
 
   return (
     <Card>
@@ -92,9 +101,15 @@ export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, set
                   {businessName || 'Business'} · {city || 'City'}
                 </p>
               </div>
+              {/* Image size badge */}
+              {imageSizeKB !== null && (
+                <span className="absolute top-2.5 left-2.5 rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                  {imageSizeKB > 1024 ? `${(imageSizeKB / 1024).toFixed(1)} MB` : `${imageSizeKB} KB`}
+                </span>
+              )}
               <button
                 onClick={clearImage}
-                className="absolute right-2.5 top-2.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+                className="absolute right-2.5 top-2.5 flex h-10 w-10 sm:h-8 sm:w-8 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 active:scale-95 transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -117,19 +132,27 @@ export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, set
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-4 sm:px-6 py-7 sm:py-8 text-center transition-all ${
-              isDragging
-                ? 'border-primary bg-orange-50/60 scale-[0.99]'
-                : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'
+            onClick={() => !isProcessing && fileInputRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-4 sm:px-6 py-8 sm:py-8 text-center transition-all ${
+              isProcessing
+                ? 'border-primary/40 bg-orange-50/40 pointer-events-none'
+                : isDragging
+                  ? 'border-primary bg-orange-50/60 scale-[0.99] shadow-inner'
+                  : 'border-slate-300 bg-slate-50/50 hover:border-primary/50 hover:bg-orange-50/30 active:scale-[0.99]'
             }`}
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100">
-              <Upload className={`h-5 w-5 transition-colors ${isDragging ? 'text-primary' : 'text-slate-400'}`} />
+            <div className={`flex h-12 w-12 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100 transition-colors ${
+              isDragging ? 'border-primary/30' : ''
+            }`}>
+              {isProcessing ? (
+                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              ) : (
+                <Upload className={`h-5 w-5 transition-colors ${isDragging ? 'text-primary' : 'text-slate-400'}`} />
+              )}
             </div>
             <div>
               <p className="text-sm font-medium text-slate-700">
-                {isDragging ? 'Drop to upload' : 'Tap to browse or drag & drop'}
+                {isProcessing ? 'Processing image...' : isDragging ? 'Drop to upload' : 'Tap to browse or drag & drop'}
               </p>
               <p className="mt-1 text-xs text-slate-400">PNG, JPG, WebP — max 5 MB</p>
             </div>
@@ -150,8 +173,9 @@ export const ImageUploadCard = memo(function ImageUploadCard({ businessLogo, set
                 onChange={e => setUrlInput(e.target.value)}
                 placeholder="https://example.com/image.jpg"
                 onKeyDown={e => e.key === 'Enter' && applyUrl()}
+                className="h-12 sm:h-10 text-base sm:text-sm"
               />
-              <Button variant="outline" onClick={applyUrl} disabled={!urlInput.trim()} className="rounded-xl shrink-0">
+              <Button variant="outline" onClick={applyUrl} disabled={!urlInput.trim()} className="rounded-xl shrink-0 h-12 sm:h-10 px-5 sm:px-4">
                 Apply
               </Button>
             </div>

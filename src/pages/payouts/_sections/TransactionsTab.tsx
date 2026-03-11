@@ -70,10 +70,10 @@ export const TransactionsTab = memo(function TransactionsTab({
                     <tr key={txn.id} className={cn('border-t border-slate-100/80 transition-colors duration-150 hover:bg-slate-50/50 even:bg-slate-50/30', txn.status === 'failed' && 'bg-red-50/30 hover:bg-red-50/50')}>
                       <td className="py-3.5 px-4">
                         <code className="text-[10px] text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded-md">{txn.id.toUpperCase()}</code>
-                        <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-40">{txn.campaignName}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-40">{txn.restaurantName ?? ''}</p>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5"><Avatar name={txn.creatorName} size="sm" /><div><p className="font-semibold text-[13px] leading-tight">{txn.creatorName}</p><p className="text-[11px] text-muted-foreground mt-0.5">{txn.upiId}</p></div></div>
+                        <div className="flex items-center gap-2.5"><Avatar name={txn.creatorName ?? 'Unknown'} size="sm" /><div><p className="font-semibold text-[13px] leading-tight">{txn.creatorName ?? 'Unknown'}</p><p className="text-[11px] text-muted-foreground mt-0.5">{txn.upiId ?? ''}</p></div></div>
                       </td>
                       <td className="py-3.5 px-4"><p className="font-black num-font text-slate-900">{formatCurrency(txn.amount)}</p></td>
                       <td className="py-3.5 px-4"><StatusBadge status={txn.status} /></td>
@@ -103,10 +103,10 @@ export const TransactionsTab = memo(function TransactionsTab({
               )}>
                 <div className={cn('absolute inset-x-0 top-0 h-0.75 bg-linear-to-r', STATUS_ACCENT[txn.status] ?? 'from-slate-300 to-slate-400')} />
                 <div className="flex items-center gap-3 mb-3">
-                  <Avatar name={txn.creatorName} size="sm" />
+                  <Avatar name={txn.creatorName ?? 'Unknown'} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[13px] leading-tight truncate">{txn.creatorName}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{txn.upiId}</p>
+                    <p className="font-bold text-[13px] leading-tight truncate">{txn.creatorName ?? 'Unknown'}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{txn.upiId ?? ''}</p>
                   </div>
                   <StatusBadge status={txn.status} />
                 </div>
@@ -114,7 +114,7 @@ export const TransactionsTab = memo(function TransactionsTab({
                   <p className="font-black num-font text-lg text-slate-900">{formatCurrency(txn.amount)}</p>
                   <p className="text-[11px] text-muted-foreground">{getRelativeTime(txn.createdAt)}</p>
                 </div>
-                <p className="text-[11px] text-muted-foreground truncate mb-3">{txn.campaignName}</p>
+                <p className="text-[11px] text-muted-foreground truncate mb-3">{txn.restaurantName ?? ''}</p>
                 {txn.failureReason && <p className="text-[11px] text-red-500 mb-3">{txn.failureReason}</p>}
                 {txn.status === 'locked' && txn.unlockAt && <p className="text-[11px] text-amber-600 font-medium mb-3">Unlocks {getRelativeTime(txn.unlockAt)}</p>}
                 <div className="flex justify-end">

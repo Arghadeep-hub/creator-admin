@@ -58,13 +58,13 @@ function QueueCard({ txn, isSuperAdmin, isSelected, isExpanded, onToggleSelect, 
       <div className="p-4 flex items-center gap-3">
         {isSuperAdmin && isActionable && <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="rounded cursor-pointer accent-primary shrink-0 h-4 w-4" />}
         <button onClick={onToggleExpand} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left active:scale-[0.98] transition-transform">
-          <Avatar name={txn.creatorName} size="sm" />
+          <Avatar name={txn.creatorName ?? 'Unknown'} size="sm" />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[13px]">{txn.creatorName}</p><StatusBadge status={txn.status} /></div>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{txn.campaignName}{txn.failureReason && <span className="text-red-500 ml-1">· {txn.failureReason}</span>}</p>
+            <div className="flex items-center gap-2 flex-wrap"><p className="font-bold text-[13px]">{txn.creatorName ?? 'Unknown'}</p><StatusBadge status={txn.status} /></div>
+            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{txn.restaurantName ?? ''}{txn.failureReason && <span className="text-red-500 ml-1">· {txn.failureReason}</span>}</p>
           </div>
         </button>
-        <div className="text-right shrink-0 mr-1"><p className="font-black num-font text-slate-900">{formatCurrency(txn.amount)}</p><p className="text-[10px] text-muted-foreground mt-0.5">{txn.upiId}</p></div>
+        <div className="text-right shrink-0 mr-1"><p className="font-black num-font text-slate-900">{formatCurrency(txn.amount)}</p><p className="text-[10px] text-muted-foreground mt-0.5">{txn.upiId ?? ''}</p></div>
         <div className="shrink-0 flex items-center gap-1.5">
           {isSuperAdmin && txn.status === 'processing' && onAction && <Button size="sm" className="h-8 rounded-xl text-xs" onClick={onAction}><Send className="h-3 w-3" />Release</Button>}
           {isSuperAdmin && txn.status === 'failed' && onAction && <Button size="sm" variant="destructive" className="h-8 rounded-xl text-xs" onClick={onAction}><RefreshCw className="h-3 w-3" />Retry</Button>}
@@ -81,7 +81,7 @@ function QueueCard({ txn, isSuperAdmin, isSelected, isExpanded, onToggleSelect, 
           <div className="px-4 pb-4 border-t border-slate-100/80 bg-slate-50/40">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
               <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Transaction ID</p><p className="font-mono mt-1 text-[11px] bg-white border border-slate-100 px-2 py-1 rounded-lg">{txn.id.toUpperCase()}</p></div>
-              <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Submission</p><p className="font-mono mt-1 text-[11px] bg-white border border-slate-100 px-2 py-1 rounded-lg">{txn.submissionId.toUpperCase()}</p></div>
+              {txn.submissionId && <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Submission</p><p className="font-mono mt-1 text-[11px] bg-white border border-slate-100 px-2 py-1 rounded-lg">{txn.submissionId.toUpperCase()}</p></div>}
               <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Created</p><p className="mt-1 font-medium">{getRelativeTime(txn.createdAt)}</p></div>
               {txn.status === 'locked' && txn.unlockAt && <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Unlocks</p><p className="mt-1 text-amber-600 font-semibold">{getRelativeTime(txn.unlockAt)}</p></div>}
               {txn.failureReason && <div className="col-span-2"><p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Failure</p><p className="mt-1 text-red-600 font-semibold">{txn.failureReason}</p></div>}

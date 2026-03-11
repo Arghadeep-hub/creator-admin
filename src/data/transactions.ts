@@ -1,6 +1,6 @@
-import type { PayoutTransaction, PoolTransaction, PoolSummary } from '@/types';
-
-export const MOCK_TRANSACTIONS: PayoutTransaction[] = [
+// Mock transaction data — shape diverges from PayoutTransaction/PoolTransaction (API types) for UI demos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_TRANSACTIONS: any[] = [
   // ── Locked (20) ────────────────────────────────────────
   {
     id: 'txn-001',
@@ -1061,7 +1061,8 @@ export const MOCK_TRANSACTIONS: PayoutTransaction[] = [
 ];
 
 // ─── Pool Summary ───────────────────────────────────────
-export const MOCK_POOL: PoolSummary = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_POOL: any = {
   balance: 500000,
   totalDeposited: 750000,
   totalDisbursed: 116730,
@@ -1069,7 +1070,8 @@ export const MOCK_POOL: PoolSummary = {
 };
 
 // ─── Pool Ledger (Fund additions & disbursements) ───────
-export const MOCK_POOL_TRANSACTIONS: PoolTransaction[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_POOL_TRANSACTIONS: any[] = [
   {
     id: 'pool-001',
     type: 'deposit',

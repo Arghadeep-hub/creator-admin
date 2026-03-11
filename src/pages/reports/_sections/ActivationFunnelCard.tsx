@@ -2,23 +2,38 @@ import { memo } from 'react'
 import { Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ChartCard } from '../reports.types'
-import { ACTIVATION_FUNNEL_DATA } from '@/data/chart-data'
+import type { CreatorsReport } from '@/store/api/reportsApi'
 
-export const ActivationFunnelCard = memo(function ActivationFunnelCard() {
-  const dropoffs = ACTIVATION_FUNNEL_DATA.slice(0, -1).map((s, j) => s.count - ACTIVATION_FUNNEL_DATA[j + 1].count)
-  const maxDropoff = Math.max(...dropoffs)
+interface Props {
+  creatorsReport: CreatorsReport | null
+}
+
+export const ActivationFunnelCard = memo(function ActivationFunnelCard({ creatorsReport }: Props) {
+  const total = creatorsReport?.totalCreators ?? 0
+
+  // Build a funnel from available creator data
+  const funnelData = total > 0
+    ? [
+        { step: 'Registered', count: total, percent: 100 },
+        { step: 'KYC Verified', count: creatorsReport?.kycVerified ?? 0, percent: total > 0 ? Math.round(((creatorsReport?.kycVerified ?? 0) / total) * 100) : 0 },
+        { step: 'Active', count: creatorsReport?.activeCreators ?? 0, percent: total > 0 ? Math.round(((creatorsReport?.activeCreators ?? 0) / total) * 100) : 0 },
+      ]
+    : []
+
+  const dropoffs = funnelData.slice(0, -1).map((s, j) => s.count - funnelData[j + 1].count)
+  const maxDropoff = dropoffs.length > 0 ? Math.max(...dropoffs) : 0
 
   return (
     <ChartCard title="Creator Activation Funnel" subtitle="Drop-off analysis at each onboarding step">
       <div className="space-y-4 pt-1">
-        {ACTIVATION_FUNNEL_DATA.map((step, i) => {
-          const dropoff = i < ACTIVATION_FUNNEL_DATA.length - 1
-            ? step.count - ACTIVATION_FUNNEL_DATA[i + 1].count
+        {funnelData.map((step, i) => {
+          const dropoff = i < funnelData.length - 1
+            ? step.count - funnelData[i + 1].count
             : 0
-          const dropoffPct = i < ACTIVATION_FUNNEL_DATA.length - 1
+          const dropoffPct = i < funnelData.length - 1 && step.count > 0
             ? ((dropoff / step.count) * 100).toFixed(1)
             : '0'
-          const isWorstDropoff = i < ACTIVATION_FUNNEL_DATA.length - 1 && dropoff === maxDropoff
+          const isWorstDropoff = i < funnelData.length - 1 && dropoff === maxDropoff && maxDropoff > 0
 
           const funnelColor = `hsl(${25 + i * 12}, 80%, ${45 + i * 3}%)`
 
@@ -50,7 +65,7 @@ export const ActivationFunnelCard = memo(function ActivationFunnelCard() {
                   />
                 </div>
 
-                {i < ACTIVATION_FUNNEL_DATA.length - 1 && (
+                {i < funnelData.length - 1 && (
                   <div className={cn(
                     'flex items-center gap-1 mt-1 text-xs',
                     isWorstDropoff ? 'text-red-600' : 'text-rose-400'
@@ -66,6 +81,9 @@ export const ActivationFunnelCard = memo(function ActivationFunnelCard() {
             </div>
           )
         })}
+        {funnelData.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">No funnel data available</p>
+        )}
       </div>
     </ChartCard>
   )

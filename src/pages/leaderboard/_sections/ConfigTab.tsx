@@ -52,7 +52,7 @@ export const ConfigTab = memo(function ConfigTab({
                   <div className="bg-white/70 rounded-xl px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide font-semibold mb-0.5">Rank Range</p>
                     <p className="font-semibold text-foreground">
-                      {tier.rankRange.min}&ndash;{tier.rankRange.max ?? '\u221E'}
+                      {tier.rankMin}&ndash;{tier.rankMax ?? '\u221E'}
                     </p>
                   </div>
                   <div className="bg-white/70 rounded-xl px-3 py-2">
@@ -86,20 +86,6 @@ export const ConfigTab = memo(function ConfigTab({
             <span className="font-semibold text-sm num-font">
               {config.resetTime} {config.timezone}
             </span>
-          </div>
-
-          <div className="pt-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
-              Auto-assigned Badges
-            </p>
-            <div className="space-y-2">
-              {config.badgeTypes.map(b => (
-                <div key={b.name} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
-                  <span className="text-sm font-medium">{b.name}</span>
-                  <Badge variant="gray" className="text-[10px] rounded-full">{b.criteria}</Badge>
-                </div>
-              ))}
-            </div>
           </div>
 
           <Button className="w-full rounded-xl mt-2" onClick={onSave}>

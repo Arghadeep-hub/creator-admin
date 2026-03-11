@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Eye,
+  Flame,
   MapPin,
   MoreVertical,
   Pause,
@@ -33,6 +34,7 @@ import {
   getFillPercent,
   getUrgencyMeta,
   getAttentionScore,
+  getCampaignDisplayStatus,
 } from './campaigns.utils'
 
 interface CampaignCardProps {
@@ -47,14 +49,17 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
   const [imageFailed, setImageFailed] = useState(false)
   const spotsPercent = getFillPercent(campaign)
   const urgency = getUrgencyMeta(campaign)
+  const displayStatus = getCampaignDisplayStatus(campaign)
   const isAlmostFull = campaign.spotsLeft <= 3
-  const isAtRisk = campaign.status === 'active' && getAttentionScore(campaign) >= 92
+  const isAtRisk = displayStatus === 'active' && getAttentionScore(campaign) >= 92
+  const isTrending = campaign.successRate > 80
 
   return (
     <motion.div
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.15 }}
+      className="w-full"
     >
       <div
         className="admin-card-elevated group cursor-pointer overflow-hidden bg-white"
@@ -62,14 +67,14 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
       >
         {/* Image header — taller on mobile for better visual weight */}
         <div className="relative h-40 sm:h-32">
-          {imageFailed ? (
+          {imageFailed || !campaign.restaurantLogo ? (
             <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-orange-100 via-amber-50 to-slate-100 text-5xl">
-              {CATEGORY_EMOJI[campaign.category] ?? CATEGORY_EMOJI.Other}
+              {CATEGORY_EMOJI[campaign.cuisine ?? ''] ?? CATEGORY_EMOJI.Other}
             </div>
           ) : (
             <img
-              src={campaign.businessLogo}
-              alt={campaign.businessName}
+              src={campaign.restaurantLogo}
+              alt={campaign.restaurantName}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               onError={() => setImageFailed(true)}
               loading="lazy"
@@ -77,13 +82,24 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
           )}
           <div className="absolute inset-0 bg-linear-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
 
-          {/* Top left: status + risk badge */}
+          {/* Shimmer overlay on hover */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+            <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/15 to-transparent group-hover:animate-[shimmer_1.2s_ease-in-out]" />
+          </div>
+
+          {/* Top left: status + risk badge + trending */}
           <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            <StatusBadge status={campaign.status} />
+            <StatusBadge status={displayStatus} />
             {isAtRisk && (
               <Badge className="bg-red-100 text-red-700">
                 <AlertTriangle className="h-3 w-3" />
                 Attention
+              </Badge>
+            )}
+            {isTrending && !isAtRisk && (
+              <Badge className="bg-emerald-100 text-emerald-700 animate-pulse">
+                <Flame className="h-3 w-3" />
+                Trending
               </Badge>
             )}
           </div>
@@ -93,7 +109,6 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
             <Badge className={urgency.badgeClass}>{urgency.label}</Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                {/* Larger tap target on mobile */}
                 <button
                   className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-slate-700 shadow-sm backdrop-blur hover:bg-white active:scale-90 transition-transform"
                   onClick={e => e.stopPropagation()}
@@ -110,8 +125,8 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
                   <Pencil className="mr-2 h-4 w-4" />Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={e => { e.stopPropagation(); onStatusToggle() }}>
-                  {campaign.status === 'active' ? (
-                    <><Pause className="mr-2 h-4 w-4" />Pause</>
+                  {displayStatus === 'active' ? (
+                    <><Pause className="mr-2 h-4 w-4" />Deactivate</>
                   ) : (
                     <><Play className="mr-2 h-4 w-4" />Activate</>
                   )}
@@ -129,10 +144,10 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
 
           {/* Bottom overlay: name + location */}
           <div className="absolute bottom-3 left-3 right-14">
-            <p className="truncate text-sm font-semibold text-white">{campaign.name}</p>
+            <p className="truncate text-sm font-semibold text-white">{campaign.restaurantName}</p>
             <p className="mt-0.5 flex items-center gap-1 text-xs text-white/70">
               <MapPin className="h-3 w-3" />
-              {campaign.businessName} · {campaign.city}
+              {campaign.city}
             </p>
           </div>
         </div>
@@ -153,7 +168,7 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
             <Badge className={DIFFICULTY_COLOR[campaign.difficulty]}>{campaign.difficulty}</Badge>
           </div>
 
-          {/* Spots fill bar */}
+          {/* Spots fill bar with milestone markers */}
           <div>
             <div className="mb-1.5 flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-slate-600">
@@ -164,16 +179,26 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
                 {campaign.spotsLeft} left
               </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="relative h-2 overflow-hidden rounded-full bg-slate-100">
               <div
                 className={cn(
-                  'h-full rounded-full transition-all',
+                  'h-full rounded-full transition-all duration-500',
                   isAlmostFull
                     ? 'bg-linear-to-r from-red-500 to-rose-500'
                     : 'bg-linear-to-r from-orange-500 to-amber-500',
                 )}
                 style={{ width: `${spotsPercent}%` }}
               />
+              {/* Milestone markers at 50%, 75%, 100% */}
+              <div className="absolute left-[50%] top-0 h-full w-px bg-slate-300/60" />
+              <div className="absolute left-[75%] top-0 h-full w-px bg-slate-300/60" />
+              <div className="absolute left-full top-0 h-full w-px bg-slate-400/60" />
+            </div>
+            <div className="mt-1 flex justify-between text-[9px] text-slate-400">
+              <span className="w-0" />
+              <span className="relative -translate-x-1/2" style={{ left: '50%', position: 'absolute' }}>50%</span>
+              <span className="relative -translate-x-1/2" style={{ left: '75%', position: 'absolute' }}>75%</span>
+              <span className="ml-auto">100%</span>
             </div>
           </div>
 
@@ -183,26 +208,35 @@ function CampaignCard({ campaign, onView, onEdit, onDelete, onStatusToggle }: Ca
               <Timer className="h-3 w-3 text-orange-500" />
               {campaign.estimatedVisitTimeMins}m visit
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-              <TrendingUp className="h-3 w-3 text-orange-500" />
+            <span className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1',
+              isTrending
+                ? 'bg-emerald-50 text-emerald-700 font-medium'
+                : 'bg-slate-100 text-slate-600',
+            )}>
+              <TrendingUp className={cn('h-3 w-3', isTrending ? 'text-emerald-500' : 'text-orange-500')} />
               {campaign.successRate}% success
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
               <CheckCircle2 className="h-3 w-3 text-orange-500" />
-              {campaign.totalSubmissions} submitted
+              {campaign.submissionsCount} submitted
             </span>
           </div>
 
-          {/* Footer */}
+          {/* Footer — enhanced avg earning */}
           <div className="flex items-center justify-between border-t border-slate-100 pt-3">
             <div className="text-xs">
               <p className={cn('font-medium', urgency.helperClass)}>{urgency.label}</p>
-              <p className="mt-0.5 text-slate-400">Paid out {formatCurrency(campaign.totalPaidOut)}</p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                  Avg {formatCurrency(campaign.averageEarning)}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-1.5">
               <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); onEdit() }}>
                 <Pencil className="h-3 w-3" />
-                Edit
+                <span className="hidden sm:inline">Edit</span>
               </Button>
               <Button size="sm" onClick={e => { e.stopPropagation(); onView() }}>
                 Open

@@ -1,127 +1,141 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import type { AdminSession } from '@/types'
-import { MOCK_ADMINS } from '@/data/admins'
+import {
+  useLoginMutation,
+  useLogoutMutation,
+  useGetMeQuery,
+  useSignupBusinessOwnerMutation,
+  useForgotPasswordMutation,
+} from '@/store/api/authApi'
+import type { SignupBusinessOwnerRequest } from '@/store/api/authApi'
+import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
 
-interface BusinessOwnerSignupInput {
-  fullName: string
-  businessName: string
-  email: string
-  phone: string
-  password: string
-}
-
-interface BusinessOwnerSignupRecord extends BusinessOwnerSignupInput {
-  id: string
-  status: 'active'
-  createdAt: string
-}
+const TOKEN_KEY = 'admin_token'
+const REFRESH_TOKEN_KEY = 'admin_refresh_token'
+/** Persistent sessions last 7 days; "session only" cookies have no expiry date. */
+const REMEMBER_DAYS = 7
 
 interface AuthContextType {
   session: AdminSession | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  signupBusinessOwner: (payload: BusinessOwnerSignupInput) => Promise<{ success: boolean; error?: string }>
+  isLoading: boolean
+  login: (email: string, password: string, rememberDevice?: boolean) => Promise<{ success: boolean; error?: string }>
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>
   logout: () => void
+  signupBusinessOwner: (data: SignupBusinessOwnerRequest) => Promise<{ success: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   isAuthenticated: false,
+  isLoading: true,
   login: async () => ({ success: false }),
-  signupBusinessOwner: async () => ({ success: false }),
+  requestPasswordReset: async () => ({ success: false }),
   logout: () => {},
+  signupBusinessOwner: async () => ({ success: false }),
 })
 
-const SESSION_KEY = 'ttm_admin_session'
-const BUSINESS_OWNER_SIGNUP_KEY = 'ttm_business_owner_signups'
-
-function loadSession(): AdminSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as AdminSession) : null
-  } catch {
-    return null
-  }
-}
-
-function loadBusinessOwnerSignups(): BusinessOwnerSignupRecord[] {
-  try {
-    const raw = localStorage.getItem(BUSINESS_OWNER_SIGNUP_KEY)
-    return raw ? (JSON.parse(raw) as BusinessOwnerSignupRecord[]) : []
-  } catch {
-    return []
-  }
+function normalizeRole(role: string): 'super_admin' | 'admin' {
+  return role.toUpperCase() === 'SUPERADMIN' ? 'super_admin' : 'admin'
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<AdminSession | null>(loadSession)
+  const [session, setSession] = useState<AdminSession | null>(null)
+  const [hasToken, setHasToken] = useState(() => !!getCookie(TOKEN_KEY))
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    await new Promise(r => setTimeout(r, 600))
+  const [loginMutation] = useLoginMutation()
+  const [logoutMutation] = useLogoutMutation()
+  const [signupBusinessOwnerMutation] = useSignupBusinessOwnerMutation()
+  const [forgotPasswordMutation] = useForgotPasswordMutation()
 
-    const admin = MOCK_ADMINS.find(a => a.email === email && a.password === password)
-    if (!admin) return { success: false, error: 'Invalid email or password.' }
-    if (!admin.isActive) return { success: false, error: 'Account is deactivated. Contact a Super Admin.' }
+  // Restore session on mount if a valid token cookie exists
+  const { data: meData, isSuccess: meSuccess, isError: meError, isLoading: meLoading } = useGetMeQuery(undefined, {
+    skip: !hasToken,
+  })
 
-    const newSession: AdminSession = {
-      userId: admin.id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
-      avatar: admin.avatar,
-      loginAt: new Date().toISOString(),
+  // True only while the initial token verification is in-flight
+  const isLoading = hasToken && meLoading
+
+  useEffect(() => {
+    if (meSuccess && meData) {
+      setSession(meData)
     }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(newSession))
-    setSession(newSession)
-    return { success: true }
-  }, [])
+    if (meError) {
+      // Token is invalid or expired — clear cookies and session
+      removeCookie(TOKEN_KEY)
+      removeCookie(REFRESH_TOKEN_KEY)
+      setSession(null)
+      setHasToken(false)
+    }
+  }, [meSuccess, meData, meError])
 
-  const signupBusinessOwner = useCallback(
-    async ({
-      fullName,
-      businessName,
-      email,
-      phone,
-      password,
-    }: BusinessOwnerSignupInput): Promise<{ success: boolean; error?: string }> => {
-      await new Promise(r => setTimeout(r, 600))
-
-      const normalizedEmail = email.trim().toLowerCase()
-      const adminExists = MOCK_ADMINS.some(admin => admin.email.toLowerCase() === normalizedEmail)
-      if (adminExists) {
-        return { success: false, error: 'This email already has an admin account. Use login instead.' }
+  const login = useCallback(
+    async (email: string, password: string, rememberDevice = true): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const result = await loginMutation({ email, password }).unwrap()
+        const days = rememberDevice ? REMEMBER_DAYS : undefined
+        setCookie(TOKEN_KEY, result.token, days)
+        setCookie(REFRESH_TOKEN_KEY, result.refreshToken, days)
+        setSession({ ...result.user, role: normalizeRole(result.user.role) })
+        setHasToken(true)
+        return { success: true }
+      } catch (err: unknown) {
+        const message =
+          err && typeof err === 'object' && 'data' in err
+            ? (err as { data?: { message?: string } }).data?.message ?? 'Invalid email or password.'
+            : 'Invalid email or password.'
+        return { success: false, error: message }
       }
-
-      const existingSignups = loadBusinessOwnerSignups()
-      const alreadyRequested = existingSignups.some(owner => owner.email.toLowerCase() === normalizedEmail)
-      if (alreadyRequested) {
-        return { success: false, error: 'A signup request already exists for this email.' }
-      }
-
-      const signupRecord: BusinessOwnerSignupRecord = {
-        id: `bo-${Date.now()}`,
-        fullName: fullName.trim(),
-        businessName: businessName.trim(),
-        email: normalizedEmail,
-        phone: phone.trim(),
-        password,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      }
-
-      localStorage.setItem(BUSINESS_OWNER_SIGNUP_KEY, JSON.stringify([...existingSignups, signupRecord]))
-      return { success: true }
     },
-    []
+    [loginMutation],
   )
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY)
+  const signupBusinessOwner = useCallback(
+    async (data: SignupBusinessOwnerRequest): Promise<{ success: boolean; error?: string }> => {
+      try {
+        await signupBusinessOwnerMutation(data).unwrap()
+        return { success: true }
+      } catch (err: unknown) {
+        const message =
+          err && typeof err === 'object' && 'data' in err
+            ? (err as { data?: { message?: string } }).data?.message ?? 'Signup failed. Please try again.'
+            : 'Signup failed. Please try again.'
+        return { success: false, error: message }
+      }
+    },
+    [signupBusinessOwnerMutation],
+  )
+
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<{ success: boolean; error?: string; message?: string }> => {
+      try {
+        const result = await forgotPasswordMutation({ email }).unwrap()
+        return { success: true, message: result.message }
+      } catch (err: unknown) {
+        const message =
+          err && typeof err === 'object' && 'data' in err
+            ? (err as { data?: { message?: string } }).data?.message ?? 'Unable to process password reset request.'
+            : 'Unable to process password reset request.'
+        return { success: false, error: message }
+      }
+    },
+    [forgotPasswordMutation],
+  )
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutMutation().unwrap()
+    } catch {
+      // ignore logout errors — clear regardless
+    }
+    removeCookie(TOKEN_KEY)
+    removeCookie(REFRESH_TOKEN_KEY)
     setSession(null)
-  }, [])
+    setHasToken(false)
+  }, [logoutMutation])
 
   return (
-    <AuthContext.Provider value={{ session, isAuthenticated: !!session, login, signupBusinessOwner, logout }}>
+    <AuthContext.Provider value={{ session, isAuthenticated: !!session, isLoading, login, requestPasswordReset, logout, signupBusinessOwner }}>
       {children}
     </AuthContext.Provider>
   )

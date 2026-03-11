@@ -10,9 +10,10 @@ import { ChartTooltip } from './ChartTooltip'
 interface CreatorGrowthChartProps {
   data: Array<{ month: string; total: number; new: number }>
   periodLabel: string
+  newThisMonth?: number
 }
 
-export const CreatorGrowthChart = memo(function CreatorGrowthChart({ data, periodLabel }: CreatorGrowthChartProps) {
+export const CreatorGrowthChart = memo(function CreatorGrowthChart({ data, periodLabel, newThisMonth = 0 }: CreatorGrowthChartProps) {
   return (
     <Card className="lg:col-span-2 overflow-hidden">
       <CardHeader className="pb-2 px-4 sm:px-6">
@@ -24,7 +25,7 @@ export const CreatorGrowthChart = memo(function CreatorGrowthChart({ data, perio
             </p>
           </div>
           <Badge variant="success" className="text-[10px] sm:text-xs font-semibold">
-            +{formatNumber(127)} this month
+            +{formatNumber(newThisMonth)} this month
           </Badge>
         </div>
         <div className="flex items-center gap-3 sm:gap-4 mt-2">

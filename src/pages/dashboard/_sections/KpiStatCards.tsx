@@ -10,6 +10,11 @@ interface KpiStatCardsProps {
   pendingReleaseAmount: number
   hasFailedTxns: boolean
   onNavigate: (path: string) => void
+  totalCreators?: number
+  activeCampaigns?: number
+  creatorsGrowthPercent?: number
+  submissionsGrowthPercent?: number
+  payoutsGrowthPercent?: number
 }
 
 export const KpiStatCards = memo(function KpiStatCards({
@@ -19,6 +24,11 @@ export const KpiStatCards = memo(function KpiStatCards({
   pendingReleaseAmount,
   hasFailedTxns,
   onNavigate,
+  totalCreators = 0,
+  activeCampaigns = 0,
+  creatorsGrowthPercent,
+  submissionsGrowthPercent,
+  payoutsGrowthPercent,
 }: KpiStatCardsProps) {
   return (
     <div className="-mx-4 sm:mx-0">
@@ -30,9 +40,9 @@ export const KpiStatCards = memo(function KpiStatCards({
         >
           <StatCard
             label="Total Creators"
-            value={formatNumber(2437)}
-            subValue="+127 this month"
-            trend={5.5}
+            value={formatNumber(totalCreators)}
+            subValue="Creator base"
+            trend={creatorsGrowthPercent}
             trendLabel="vs last month"
             icon={Users}
             iconColor="text-blue-500"
@@ -48,8 +58,8 @@ export const KpiStatCards = memo(function KpiStatCards({
         >
           <StatCard
             label="Active Campaigns"
-            value="48"
-            subValue="5 ending this week"
+            value={String(activeCampaigns)}
+            subValue="Currently running"
             trend={2.1}
             trendLabel="vs last month"
             icon={Megaphone}
@@ -67,9 +77,9 @@ export const KpiStatCards = memo(function KpiStatCards({
           <StatCard
             label="Pending Reviews"
             value={pendingSubmissions}
-            subValue={`${overdueReviews} overdue by 48h`}
-            trend={-8.3}
-            trendLabel="vs last week"
+            subValue={`${overdueReviews} need review today`}
+            trend={submissionsGrowthPercent !== undefined ? -submissionsGrowthPercent : undefined}
+            trendLabel="vs last period"
             icon={Video}
             iconColor="text-primary"
             iconBg="bg-orange-50"
@@ -87,7 +97,7 @@ export const KpiStatCards = memo(function KpiStatCards({
             label="Pool Balance"
             value={formatCurrency(poolBalance)}
             subValue={`${formatCurrency(pendingReleaseAmount)} pending release`}
-            trend={12.4}
+            trend={payoutsGrowthPercent}
             trendLabel="vs last month"
             icon={Wallet}
             iconColor="text-purple-500"

@@ -6,10 +6,11 @@ import { INR } from './types'
 import type { FormState } from './types'
 
 interface Props {
-  form: Pick<FormState, 'payoutMin' | 'payoutBase' | 'payoutMax' | 'bonusPerThousandViews' | 'status' | 'deadline'>
+  form: Pick<FormState, 'payoutMin' | 'payoutBase' | 'payoutMax' | 'bonusPerThousandViews' | 'isActive' | 'deadline' | 'totalSpots'>
+  poolBalance?: number
 }
 
-export const PayoutPreviewCard = memo(function PayoutPreviewCard({ form }: Props) {
+export const PayoutPreviewCard = memo(function PayoutPreviewCard({ form, poolBalance }: Props) {
   // Use the true maximum across all three values so nothing overflows
   const scale = Math.max(form.payoutMax, form.payoutBase, form.payoutMin, 1)
   const pct = (v: number) => Math.max(0, Math.min((v / scale) * 100, 100))
@@ -94,12 +95,11 @@ export const PayoutPreviewCard = memo(function PayoutPreviewCard({ form }: Props
         <div className="flex items-center gap-2.5 pt-0.5">
           <Badge
             className={
-              form.status === 'active' ? 'bg-emerald-100 text-emerald-700'
-              : form.status === 'paused' ? 'bg-amber-100 text-amber-700'
+              form.isActive ? 'bg-emerald-100 text-emerald-700'
               : 'bg-slate-100 text-slate-600'
             }
           >
-            {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
+            {form.isActive ? 'Active' : 'Inactive'}
           </Badge>
           {form.deadline && (
             <span className="text-xs text-muted-foreground">
@@ -107,6 +107,26 @@ export const PayoutPreviewCard = memo(function PayoutPreviewCard({ form }: Props
             </span>
           )}
         </div>
+
+        {/* Pool balance indicator */}
+        {poolBalance != null && (() => {
+          const maxCost = form.payoutMax * (form.totalSpots ?? 0)
+          const isFunded = poolBalance >= maxCost
+          const shortfall = maxCost - poolBalance
+          return (
+            <div className="border-t border-slate-100 pt-3">
+              {isFunded ? (
+                <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                  Pool funded
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 text-amber-700 text-xs">
+                  Pool needs {INR.format(shortfall)} more to publish
+                </Badge>
+              )}
+            </div>
+          )
+        })()}
       </CardContent>
     </Card>
   )

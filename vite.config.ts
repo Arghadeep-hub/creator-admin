@@ -97,4 +97,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    host: true,
+    allowedHosts: ['.trythemenu.com', '.ngrok-free.dev', '.vercel.app'],
+  },
 });

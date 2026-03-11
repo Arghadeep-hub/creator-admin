@@ -3,7 +3,7 @@ import type { MilestoneBadge } from '@/types';
 export const MOCK_BADGES: MilestoneBadge[] = [
   {
     id: 'badge-001',
-    name: 'First Approved Reel',
+    label: 'First Approved Reel',
     description: 'First submission approved by admin',
     icon: 'Star',
     unlockCriteria: 'submission_count',
@@ -11,12 +11,12 @@ export const MOCK_BADGES: MilestoneBadge[] = [
     rewardMultiplier: 1.0,
     trustScoreBonus: 2,
     isActive: true,
-    totalEarned: 842,
+
     createdAt: '2024-01-15T10:00:00Z',
   },
   {
     id: 'badge-002',
-    name: '₹10k Weekly Sprint',
+    label: '₹10k Weekly Sprint',
     description: 'Earn ₹10,000+ in a single week',
     icon: 'Zap',
     unlockCriteria: 'earnings_threshold',
@@ -24,12 +24,12 @@ export const MOCK_BADGES: MilestoneBadge[] = [
     rewardMultiplier: 1.05,
     trustScoreBonus: 5,
     isActive: true,
-    totalEarned: 156,
+
     createdAt: '2024-01-15T10:00:00Z',
   },
   {
     id: 'badge-003',
-    name: 'Clean Integrity Streak',
+    label: 'Clean Integrity Streak',
     description: '5 consecutive submissions with zero fraud flags',
     icon: 'Shield',
     unlockCriteria: 'streak',
@@ -37,12 +37,12 @@ export const MOCK_BADGES: MilestoneBadge[] = [
     rewardMultiplier: 1.03,
     trustScoreBonus: 8,
     isActive: true,
-    totalEarned: 320,
+
     createdAt: '2024-02-01T10:00:00Z',
   },
   {
     id: 'badge-004',
-    name: 'Leaderboard Top 10',
+    label: 'Leaderboard Top 10',
     description: 'Reach top 10 on the weekly leaderboard',
     icon: 'Trophy',
     unlockCriteria: 'rank',
@@ -50,7 +50,7 @@ export const MOCK_BADGES: MilestoneBadge[] = [
     rewardMultiplier: 1.08,
     trustScoreBonus: 10,
     isActive: true,
-    totalEarned: 89,
+
     createdAt: '2024-02-01T10:00:00Z',
   },
 ];

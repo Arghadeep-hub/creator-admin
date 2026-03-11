@@ -1,38 +1,41 @@
 import { Badge } from '@/components/ui/badge'
 import type { BadgeProps } from '@/components/ui/badge'
 
-type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'paid'
-type CampaignStatus = 'draft' | 'active' | 'paused' | 'expired'
-type PayoutStatus = 'locked' | 'processing' | 'paid' | 'failed'
-type KycStatus = 'pending' | 'verified' | 'rejected'
+type SubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
+type CampaignStatus = 'active' | 'inactive' | 'expired'
+type PayoutStatus = 'LOCKED' | 'PROCESSING' | 'PAID' | 'FAILED' | 'locked' | 'processing' | 'paid' | 'failed'
+type KycStatus = 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
 type AccountStatus = 'active' | 'inactive' | 'flagged'
 
 type StatusType = SubmissionStatus | CampaignStatus | PayoutStatus | KycStatus | AccountStatus
 
 const statusConfig: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
-  // Submission
-  pending:    { label: 'Pending',    variant: 'warning' },
-  approved:   { label: 'Approved',   variant: 'success' },
-  rejected:   { label: 'Rejected',   variant: 'error' },
-  paid:       { label: 'Paid',       variant: 'info' },
-  // Campaign
-  draft:      { label: 'Draft',      variant: 'gray' },
+  // Submission (UPPERCASE from API)
+  PENDING:    { label: 'Pending',    variant: 'warning' },
+  APPROVED:   { label: 'Approved',   variant: 'success' },
+  REJECTED:   { label: 'Rejected',   variant: 'error' },
+  PAID:       { label: 'Paid',       variant: 'info' },
+  // Campaign (derived display status)
   active:     { label: 'Active',     variant: 'success' },
-  paused:     { label: 'Paused',     variant: 'warning' },
+  inactive:   { label: 'Inactive',   variant: 'gray' },
   expired:    { label: 'Expired',    variant: 'gray' },
-  // Payout
+  // Payout statuses (lowercase from API)
   locked:     { label: 'Locked',     variant: 'orange' },
   processing: { label: 'Processing', variant: 'info' },
   failed:     { label: 'Failed',     variant: 'error' },
-  // KYC
-  verified:   { label: 'Verified',   variant: 'success' },
+  // Payout statuses (uppercase fallback)
+  LOCKED:     { label: 'Locked',     variant: 'orange' },
+  PROCESSING: { label: 'Processing', variant: 'info' },
+  FAILED:     { label: 'Failed',     variant: 'error' },
+  // KYC (UPPERCASE from API)
+  SUBMITTED:  { label: 'Submitted',  variant: 'warning' },
+  VERIFIED:   { label: 'Verified',   variant: 'success' },
   // Account
-  inactive:   { label: 'Inactive',   variant: 'gray' },
   flagged:    { label: 'Flagged',    variant: 'error' },
 }
 
 interface StatusBadgeProps {
-  status: StatusType
+  status: StatusType | string
   className?: string
 }
 

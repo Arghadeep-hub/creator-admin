@@ -12,7 +12,11 @@ import {
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { MOCK_NOTIFICATIONS } from '@/data/notifications'
+import {
+  useGetNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from '@/store/api/notificationsApi'
 import type { AdminNotification } from '@/types'
 
 /* ── Page metadata ─────────────────────────────────────────────────────────── */
@@ -53,9 +57,9 @@ const SEVERITY: Record<AdminNotification['severity'], {
   bg: string
   iconColor: string
 }> = {
-  info:     { icon: Info,          dot: 'bg-blue-500',  bg: 'bg-blue-50/80',  iconColor: 'text-blue-500' },
-  warning:  { icon: AlertTriangle, dot: 'bg-amber-500', bg: 'bg-amber-50/80', iconColor: 'text-amber-500' },
-  critical: { icon: AlertCircle,   dot: 'bg-red-500',   bg: 'bg-red-50/80',   iconColor: 'text-red-500' },
+  INFO:     { icon: Info,          dot: 'bg-blue-500',  bg: 'bg-blue-50/80',  iconColor: 'text-blue-500' },
+  WARNING:  { icon: AlertTriangle, dot: 'bg-amber-500', bg: 'bg-amber-50/80', iconColor: 'text-amber-500' },
+  CRITICAL: { icon: AlertCircle,   dot: 'bg-red-500',   bg: 'bg-red-50/80',   iconColor: 'text-red-500' },
 }
 
 /* ── Greeting helper ───────────────────────────────────────────────────────── */
@@ -72,29 +76,41 @@ export function TopBar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [notifOpen, setNotifOpen] = useState(false)
-  const [readIds, setReadIds] = useState<Set<string>>(
-    () => new Set(MOCK_NOTIFICATIONS.filter(n => n.read).map(n => n.id))
-  )
+
+  const { data: notifData } = useGetNotificationsQuery({ page: 1, limit: 50 })
+  const [markRead] = useMarkNotificationReadMutation()
+  const [markAllRead] = useMarkAllNotificationsReadMutation()
+
+  const allNotifications = notifData?.data ?? []
 
   const page = getPageMeta(pathname)
   const isDashboard = pathname === '/dashboard'
+
   const { unread, earlier } = useMemo(() => {
     const u: AdminNotification[] = []
     const e: AdminNotification[] = []
-    for (const n of MOCK_NOTIFICATIONS) {
-      ;(readIds.has(n.id) ? e : u).push(n)
+    for (const n of allNotifications) {
+      ;(n.read ? e : u).push(n)
     }
     return { unread: u, earlier: e }
-  }, [readIds])
+  }, [allNotifications])
 
   const unreadCount = unread.length
 
-  function markAllRead() {
-    setReadIds(new Set(MOCK_NOTIFICATIONS.map(n => n.id)))
+  async function handleMarkAllRead() {
+    try {
+      await markAllRead().unwrap()
+    } catch {
+      // silent — UI will update via cache invalidation
+    }
   }
 
-  function markOneRead(id: string) {
-    setReadIds(prev => new Set([...prev, id]))
+  async function handleMarkOneRead(id: string) {
+    try {
+      await markRead(id).unwrap()
+    } catch {
+      // silent
+    }
   }
 
   return (
@@ -103,7 +119,7 @@ export function TopBar() {
         {/* Frosted glass */}
         <div className="absolute inset-0 bg-transparent backdrop-blur-xl" />
 
-        <div className="relative flex h-14 items-center justify-between gap-3 px-4 md:h-[60px] md:px-6">
+        <div className="relative flex h-14 items-center justify-between gap-3 px-4 md:h-15 md:px-6">
           {/* ── Left: Page context / Greeting ── */}
           <div className="min-w-0 flex-1">
             {isDashboard ? (
@@ -181,7 +197,7 @@ export function TopBar() {
             {unreadCount > 0 && (
               <button
                 type="button"
-                onClick={markAllRead}
+                onClick={handleMarkAllRead}
                 className="flex items-center gap-1.5 text-[12px] font-medium text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
@@ -210,7 +226,7 @@ export function TopBar() {
                     notif={notif}
                     isRead={false}
                     onTap={() => {
-                      markOneRead(notif.id)
+                      handleMarkOneRead(notif.id)
                       setNotifOpen(false)
                       if (notif.actionUrl) navigate(notif.actionUrl)
                     }}
@@ -298,7 +314,7 @@ function NotifCard({
         <p className={cn('text-xs leading-relaxed mt-0.5', isRead ? 'text-slate-400' : 'text-muted-foreground')}>
           {notif.message}
         </p>
-        <p className="text-[11px] text-slate-400 mt-1">{getRelativeTime(notif.timestamp)}</p>
+        <p className="text-[11px] text-slate-400 mt-1">{getRelativeTime(notif.createdAt)}</p>
       </div>
     </div>
   )

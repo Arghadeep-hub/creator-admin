@@ -2,7 +2,6 @@ import { memo } from 'react'
 import { Star } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { TIER_CONFIG, RANK_ICONS } from '../leaderboard.types'
 import type { LeaderboardEntry } from '@/types'
 
@@ -18,6 +17,12 @@ const shimmerKeyframes = `
 }
 `
 
+function getTierKey(rank: number): string {
+  if (rank === 1) return 'gold'
+  if (rank === 2) return 'silver'
+  return 'bronze'
+}
+
 function PodiumCard({
   entry,
   visualRank,
@@ -27,7 +32,8 @@ function PodiumCard({
   visualRank: number
   onViewCreator: (id: string) => void
 }) {
-  const tier = TIER_CONFIG[entry.tier] ?? TIER_CONFIG.bronze
+  const tierKey = getTierKey(visualRank)
+  const tier = TIER_CONFIG[tierKey] ?? TIER_CONFIG.bronze
   const Icon = tier.icon
   const isFirst = visualRank === 1
 
@@ -73,45 +79,35 @@ function PodiumCard({
         <div className="absolute top-3 right-3">
           <Icon className={cn(
             'h-5 w-5',
-            entry.tier === 'gold' ? 'text-amber-500' : entry.tier === 'silver' ? 'text-slate-400' : 'text-orange-500'
+            tierKey === 'gold' ? 'text-amber-500' : tierKey === 'silver' ? 'text-slate-400' : 'text-orange-500'
           )} />
         </div>
 
         <div className="relative p-4 flex flex-col items-center gap-2 text-center">
           <Avatar
-            name={entry.creatorName}
+            name={entry.creator.name}
             size={isFirst ? 'lg' : 'md'}
             className={cn(
               'ring-4',
-              entry.tier === 'gold' ? 'ring-amber-300' : entry.tier === 'silver' ? 'ring-slate-300' : 'ring-orange-300'
+              tierKey === 'gold' ? 'ring-amber-300' : tierKey === 'silver' ? 'ring-slate-300' : 'ring-orange-300'
             )}
           />
           <div>
             <p className={cn('font-bold leading-tight', isFirst ? 'text-base' : 'text-sm')}>
-              {entry.creatorName}
+              {entry.creator.name}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{entry.submissions} reels</p>
           </div>
           <p className={cn(
             'font-bold num-font',
             isFirst ? 'text-2xl' : 'text-xl',
-            entry.tier === 'gold' ? 'text-amber-700' : entry.tier === 'silver' ? 'text-slate-600' : 'text-orange-700'
+            tierKey === 'gold' ? 'text-amber-700' : tierKey === 'silver' ? 'text-slate-600' : 'text-orange-700'
           )}>
             {formatCurrency(entry.weeklyEarnings)}
           </p>
           <div className="flex items-center gap-1">
             <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-            <span className="text-xs font-semibold text-muted-foreground">{entry.points} pts</span>
+            <span className="text-xs font-semibold text-muted-foreground">{entry.totalPoints} pts</span>
           </div>
-          {entry.badges.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1 mt-1">
-              {entry.badges.map(badge => (
-                <Badge key={badge} variant="orange" className="text-[10px] px-2 py-0 rounded-full">
-                  {badge}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

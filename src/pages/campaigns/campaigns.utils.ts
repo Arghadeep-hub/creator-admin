@@ -32,9 +32,23 @@ export const CATEGORY_EMOJI: Record<string, string> = {
 }
 
 export const DIFFICULTY_COLOR: Record<string, string> = {
-  Easy: 'bg-emerald-100 text-emerald-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  Hard: 'bg-red-100 text-red-700',
+  EASY: 'bg-emerald-100 text-emerald-700',
+  MEDIUM: 'bg-amber-100 text-amber-700',
+  HARD: 'bg-red-100 text-red-700',
+}
+
+/**
+ * Derive a display status from the campaign's isActive flag and deadline.
+ * - 'expired'  → deadline has passed (regardless of isActive)
+ * - 'active'   → isActive: true AND deadline in future
+ * - 'inactive' → isActive: false AND deadline in future
+ */
+export type CampaignDisplayStatus = 'active' | 'inactive' | 'expired'
+
+export const getCampaignDisplayStatus = (campaign: CampaignAdmin): CampaignDisplayStatus => {
+  const isExpired = new Date(campaign.deadline) <= new Date()
+  if (isExpired) return 'expired'
+  return campaign.isActive ? 'active' : 'inactive'
 }
 
 export const getHoursLeft = (deadline: string) =>
@@ -45,20 +59,14 @@ export const getFillPercent = (campaign: CampaignAdmin) =>
     ? 0
     : Math.round(((campaign.totalSpots - campaign.spotsLeft) / campaign.totalSpots) * 100)
 
-export const getApprovalRate = (campaign: CampaignAdmin) =>
-  campaign.totalSubmissions === 0
-    ? 0
-    : Math.round((campaign.approvedSubmissions / campaign.totalSubmissions) * 100)
-
 export const getUrgencyMeta = (campaign: CampaignAdmin) => {
+  const displayStatus = getCampaignDisplayStatus(campaign)
   const hoursLeft = getHoursLeft(campaign.deadline)
 
-  if (campaign.status === 'expired' || hoursLeft <= 0)
+  if (displayStatus === 'expired' || hoursLeft <= 0)
     return { label: 'Expired', badgeClass: 'bg-slate-200 text-slate-700', helperClass: 'text-slate-500', priority: 12 }
-  if (campaign.status === 'draft')
-    return { label: 'Draft', badgeClass: 'bg-slate-200 text-slate-700', helperClass: 'text-slate-500', priority: 26 }
-  if (campaign.status === 'paused')
-    return { label: 'Paused', badgeClass: 'bg-amber-100 text-amber-700', helperClass: 'text-amber-700', priority: 40 }
+  if (displayStatus === 'inactive')
+    return { label: 'Inactive', badgeClass: 'bg-slate-200 text-slate-700', helperClass: 'text-slate-500', priority: 26 }
   if (campaign.spotsLeft <= 3)
     return { label: `${campaign.spotsLeft} spots left`, badgeClass: 'bg-red-100 text-red-700', helperClass: 'text-red-600', priority: 100 }
   if (hoursLeft <= 48)
@@ -72,12 +80,35 @@ export const getUrgencyMeta = (campaign: CampaignAdmin) => {
 }
 
 export const getAttentionScore = (campaign: CampaignAdmin) => {
-  if (campaign.status === 'paused') return 72
-  if (campaign.status === 'draft') return 44
-  if (campaign.status === 'expired') return 20
+  const displayStatus = getCampaignDisplayStatus(campaign)
+  if (displayStatus === 'inactive') return 44
+  if (displayStatus === 'expired') return 20
   const urgency = getUrgencyMeta(campaign).priority
   const lowSuccess = campaign.successRate > 0 && campaign.successRate < 75 ? 18 : 0
-  const lowApproval = campaign.totalSubmissions > 0 && getApprovalRate(campaign) < 70 ? 16 : 0
   const almostFull = campaign.spotsLeft <= 5 ? 14 : 0
-  return urgency + lowSuccess + lowApproval + almostFull
+  return urgency + lowSuccess + almostFull
+}
+
+/**
+ * Returns a human-readable countdown string for a deadline.
+ * e.g. "2d 5h left", "3h 12m left", "14m left", "Expired"
+ */
+export const getDeadlineCountdown = (deadline: string): string => {
+  const diff = new Date(deadline).getTime() - Date.now()
+  if (diff <= 0) return 'Expired'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  if (days > 0) return `${days}d ${hours}h left`
+  if (hours > 0) return `${hours}h ${mins}m left`
+  return `${mins}m left`
+}
+
+/** Icon key for each sort option — maps to lucide icon names */
+export const SORT_ICON_MAP: Record<CampaignSort, string> = {
+  attention: 'AlertTriangle',
+  'highest-payout': 'DollarSign',
+  'highest-success': 'TrendingUp',
+  deadline: 'Clock',
+  'most-filled': 'Users',
 }

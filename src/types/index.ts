@@ -3,22 +3,22 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  password: string;
-  role: 'super_admin' | 'admin';
-  avatar: string;
-  phone: string;
-  department: string;
+  role: 'SUPERADMIN' | 'ADMIN';
+  avatar: string | null;
+  phone: string | null;
+  department: string | null;
   managedCities?: string[];
   createdAt: string;
-  lastLoginAt: string;
+  lastLoginAt: string | null;
   isActive: boolean;
+  updatedAt: string;
 }
 
 export interface AdminSession {
   userId: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'admin';
+  role: 'super_admin' | 'admin'; // normalized frontend format
   avatar: string;
   loginAt: string;
 }
@@ -26,16 +26,14 @@ export interface AdminSession {
 // ─── Campaign (Admin-side) ──────────────────────────────
 export interface CampaignAdmin {
   id: string;
-  createdBy: string;
-  businessName: string;
-  businessLogo: string;
-  category: 'Restaurant' | 'Fitness' | 'Beauty' | 'Fashion' | 'Travel' | 'Education' | 'Other';
-  name: string;
+  restaurantName: string;
+  restaurantLogo: string | null;
   city: string;
+  cuisine: string | null;
   address: string;
   latitude: number;
   longitude: number;
-  description: string;
+  description: string | null;
   payoutBase: number;
   payoutMin: number;
   payoutMax: number;
@@ -43,212 +41,203 @@ export interface CampaignAdmin {
   bonusPerThousandViews: number;
   requiredHashtags: string[];
   rules: string[];
-  fraudChecks: string[];
-  difficulty: 'Easy' | 'Medium' | 'Hard';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   totalSpots: number;
   spotsLeft: number;
   deadline: string;
-  status: 'draft' | 'active' | 'paused' | 'expired';
+  isActive: boolean;
   successRate: number;
+  averageEarning: number;
   estimatedVisitTimeMins: number;
   checkInRadiusMeters: number;
-  socialProof: string;
+  createdById: string | null;
+  createdBy: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
-  totalSubmissions: number;
-  approvedSubmissions: number;
-  rejectedSubmissions: number;
-  totalPaidOut: number;
-  averageEarning: number;
-  autoCalculateMetrics: boolean;
-  socialProofTemplate?: string;
+  // Aggregated fields (list response)
+  submissionsCount: number;
+  joinsCount: number;
 }
 
 // ─── Creator (Admin-side view) ──────────────────────────
 export interface CreatorAdmin {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  city: string;
-  profileImage: string;
-  instagramHandle: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  profileImage: string | null;
+  instagramId: string;
+  instagramHandle: string | null;
   instagramFollowers: number;
   instagramConnected: boolean;
-  kycStatus: 'pending' | 'verified' | 'rejected';
-  kycDocuments: {
-    panNumber: string;
-    aadhaarLast4: string;
-  };
-  upiId: string;
+  kycStatus: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  upiId: string | null;
   trustScore: number;
   walletBalance: number;
   lockedEarnings: number;
   lifetimeEarnings: number;
   weeklyEarnings: number;
-  totalSubmissions: number;
-  approvedSubmissions: number;
-  rejectedSubmissions: number;
-  joinedAt: string;
-  lastActiveAt: string;
-  accountStatus: 'active' | 'inactive' | 'flagged';
-  flagReason?: string;
-  assignedAdmin?: string;
+  reelsDone: number;
   activationProgress: number;
-  activationStepsCompleted: {
-    profileCreated: boolean;
-    instagramConnected: boolean;
-    kycSubmitted: boolean;
-    upiAdded: boolean;
-    termsAccepted: boolean;
-  };
-  instagramMetrics: {
+  termsAccepted: boolean;
+  joinedAt: string;
+  updatedAt: string;
+  // Detail-only fields
+  kycRecords?: Array<{
+    id: string;
+    panNumber: string;
+    aadhaarLast4: string;
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    adminNotes: string | null;
+    submittedAt: string;
+    reviewedAt: string | null;
+  }>;
+  accountStatus?: 'active' | 'inactive' | 'flagged';
+  flagReason?: string;
+  consecutiveApprovedCount?: number;
+  totalReels?: number;
+  avgReach?: number;
+  avgEngagement?: number;
+  lastActiveAt?: string | null;
+  assignedAdmin?: string | null;
+  totalSubmissions?: number;
+  approvedSubmissions?: number;
+  rejectedSubmissions?: number;
+  instagramMetrics?: {
     avgReach: number;
     avgEngagement: number;
     totalReelsSubmitted: number;
-    connectedAt: string;
-    lastRefreshedAt: string;
   };
-  milestoneBadges: Array<{
+  activationStepsCompleted?: Record<string, boolean>;
+  milestoneBadges?: Array<{
     id: string;
     name: string;
-    earnedAt?: string;
     isUnlocked: boolean;
+    earnedAt: string | null;
   }>;
-  followerHistory: Array<{
-    month: string;
-    followers: number;
-  }>;
+}
+
+// ─── Creator Submission Item (used in creator detail submissions tab) ───────
+export interface CreatorSubmissionItem {
+  id: string;
+  campaignId: string;
+  restaurantName: string;
+  city: string;
+  reelUrl: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  verificationStage: 'T0' | 'H24' | 'H72' | 'COMPLETED';
+  submittedAt: string;
+  projectedPayout: number;
+  finalPayout: number | null;
+  fraudFlags: string[];
+  latestViews: number;
+  latestLikes: number;
 }
 
 // ─── Submission (Admin-side view) ────────────────────────
 export interface SubmissionAdmin {
   id: string;
   campaignId: string;
-  campaignName: string;
-  campaignLogo: string;
   creatorId: string;
-  creatorName: string;
-  creatorHandle: string;
-  creatorAvatar: string;
   reelUrl: string;
-  reelThumbnail: string;
-  caption: string;
-  billNumber: string;
-  billImageUrl: string;
+  reelCode: string;
+  reelThumbnail: string | null;
+  captionAtSubmission: string | null;
+  billNumber: string | null;
+  billImageUrl: string | null;
+  gpsLatitude: number | null;
+  gpsLongitude: number | null;
+  gpsAccuracyMeters: number | null;
   submittedAt: string;
   unlockAt: string;
-  status: 'pending' | 'approved' | 'rejected' | 'paid';
-  verificationStage: 't0' | 'h24' | 'h72' | 'completed';
-  ranking: number;
-  totalRankEntries: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  verificationStage: 'T0' | 'H24' | 'H72' | 'COMPLETED';
   projectedPayout: number;
-  finalPayout?: number;
-  metricsCurrent: {
-    views: number;
-    likes: number;
-    comments: number;
-  };
-  metricsTimeline: Array<{
-    label: string;
-    timestamp: string;
-    views: number;
-    likes: number;
-    comments: number;
-  }>;
-  payoutBreakdown: {
-    base: number;
-    engagementBonus: number;
-    trustBonus: number;
-    penalties: number;
-    total: number;
-  };
-  trustSignals: {
-    gpsVerified: boolean;
-    billVerified: boolean;
-    postDeleted: boolean;
-    captionEdited: boolean;
-    lowEngagement: boolean;
-  };
+  finalPayout: number | null;
+  adminNotes: string | null;
+  gpsVerified: boolean;
+  billVerified: boolean;
+  postDeleted: boolean;
+  captionEdited: boolean;
+  lowEngagement: boolean;
   fraudFlags: string[];
-  adminNotes: Array<{
+  payoutBase: number;
+  payoutEngagementBonus: number;
+  payoutTrustBonus: number;
+  payoutPenalties: number;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  reviewedBy: { id: string; name: string } | null;
+  notes: Array<{
+    id: string;
+    submissionId: string;
     adminId: string;
     adminName: string;
     note: string;
-    timestamp: string;
+    createdAt: string;
   }>;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  rejectionReason?: string;
-  checkInLocation?: {
-    latitude: number;
-    longitude: number;
-    timestamp: string;
-    distanceFromCampaign: number;
-    withinRadius: boolean;
-  };
-  captionAtSubmission: string;
-  captionCurrent: string;
-  hashtagsMatched: string[];
-  hashtagsMissing: string[];
-  reelImportedAt: string;
-  billVerificationStatus: 'pending' | 'verified' | 'rejected';
-  billRejectionReason?: string;
-  stageTimestamps: {
-    t0: string;
-    h24?: string;
-    h72?: string;
-    completed?: string;
-  };
-  rankHistory: Array<{
-    stage: string;
-    rank: number;
-    timestamp: string;
+  submissionMetrics: Array<{
+    id: string;
+    submissionId: string;
+    label: 'T0' | 'H24' | 'H72';
+    recordedAt: string;
+    views: number;
+    likes: number;
+    comments: number;
   }>;
-  payoutOverride?: {
-    amount: number;
-    reason: string;
-    overriddenBy: string;
-    overriddenAt: string;
+  // Joined fields
+  creator?: {
+    id: string;
+    name: string;
+    instagramHandle: string | null;
+    instagramFollowers: number;
+    trustScore: number;
+  };
+  campaign?: {
+    id: string;
+    restaurantName: string;
   };
 }
 
 // ─── Payout/Transaction (Admin-side) ────────────────────
 export interface PayoutTransaction {
   id: string;
-  submissionId: string;
-  campaignName: string;
   creatorId: string;
-  creatorName: string;
+  submissionId: string | null;
   amount: number;
+  type: string;
   status: 'locked' | 'processing' | 'paid' | 'failed';
-  upiId: string;
   createdAt: string;
+  updatedAt: string;
+  // Admin-joined display fields
+  creatorName?: string;
+  restaurantName?: string;
+  upiId?: string;
   unlockAt?: string;
-  processedAt?: string;
-  completedAt?: string;
   failureReason?: string;
   processedBy?: string;
 }
 
 // ─── Pool / Fund Management ─────────────────────────────
-export interface PoolTransaction {
-  id: string;
-  type: 'deposit' | 'payout';
-  amount: number;
-  description: string;
-  performedBy: string;
-  performedByName: string;
-  timestamp: string;
-  balanceAfter: number;
-  relatedTxnId?: string;
-}
-
 export interface PoolSummary {
   balance: number;
   totalDeposited: number;
   totalDisbursed: number;
   totalAllocated: number;
+  updatedAt: string;
+}
+
+export interface PoolTransaction {
+  id: string;
+  type: 'DEPOSIT' | 'PAYOUT';
+  amount: number;
+  description: string;
+  performedById: string;
+  performedByName: string;
+  balanceAfter: number;
+  relatedTxnId: string | null;
+  createdAt: string;
 }
 
 // ─── Audit Log ──────────────────────────────────────────
@@ -257,15 +246,15 @@ export interface AuditLogEntry {
   timestamp: string;
   adminId: string;
   adminName: string;
-  adminRole: 'super_admin' | 'admin';
+  adminRole: 'SUPERADMIN' | 'ADMIN';
   action: string;
-  category: 'auth' | 'submission' | 'campaign' | 'creator' | 'payout' | 'settings' | 'admin_mgmt';
-  targetType?: string;
-  targetId?: string;
-  targetName?: string;
-  severity: 'info' | 'warning' | 'critical';
-  ipAddress: string;
-  details?: Record<string, unknown>;
+  category: 'AUTH' | 'SUBMISSION' | 'CAMPAIGN' | 'CREATOR' | 'PAYOUT' | 'SETTINGS' | 'ADMIN_MGMT';
+  targetType?: string | null;
+  targetId?: string | null;
+  targetName?: string | null;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  ipAddress?: string | null;
+  details?: Record<string, unknown> | null;
 }
 
 // ─── Platform Settings ──────────────────────────────────
@@ -292,13 +281,6 @@ export interface PlatformSettings {
     postDeletionPenaltyPercent: number;
     captionEditPenaltyPercent: number;
   };
-  trustScore: {
-    kycWeight: number;
-    approvalRateWeight: number;
-    integrityWeight: number;
-    leaderboardWeight: number;
-    premiumCampaignMinScore: number;
-  };
   payout: {
     minWithdrawalAmount: number;
     processingDelayHours: number;
@@ -306,7 +288,14 @@ export interface PlatformSettings {
     autoRetryFailed: boolean;
     maxRetries: number;
   };
-  notifications: {
+  trustScore?: {
+    kycWeight: number;
+    approvalRateWeight: number;
+    integrityWeight: number;
+    leaderboardWeight: number;
+    premiumCampaignMinScore: number;
+  };
+  notifications?: {
     emailEnabled: boolean;
     pushEnabled: boolean;
     events: Record<string, boolean>;
@@ -316,13 +305,14 @@ export interface PlatformSettings {
 // ─── Notification ───────────────────────────────────────
 export interface AdminNotification {
   id: string;
-  type: 'submission_new' | 'payout_failed' | 'kyc_pending' | 'campaign_expiring' | 'fraud_flag' | 'system';
+  adminId: string | null;
+  type: 'SUBMISSION_NEW' | 'PAYOUT_FAILED' | 'KYC_PENDING' | 'CAMPAIGN_EXPIRING' | 'FRAUD_FLAG' | 'SYSTEM';
   title: string;
   message: string;
-  timestamp: string;
   read: boolean;
-  actionUrl?: string;
-  severity: 'info' | 'warning' | 'critical';
+  actionUrl: string | null;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  createdAt: string;
 }
 
 // ─── Dashboard Stats ────────────────────────────────────
@@ -344,13 +334,19 @@ export interface DashboardStats {
 
 // ─── Activity Feed ──────────────────────────────────────
 export interface ActivityFeedEntry {
-  id: string;
-  actorName: string;
-  actorAvatar: string;
-  action: string;
-  target: string;
-  targetUrl: string;
+  type: 'submission' | 'approval';
+  submissionId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
   timestamp: string;
+  creator: {
+    id: string;
+    name: string;
+    instagramHandle: string | null;
+  };
+  campaign: {
+    id: string;
+    restaurantName: string;
+  };
 }
 
 // ─── Fraud Rule ─────────────────────────────────────────
@@ -358,66 +354,59 @@ export interface FraudRule {
   id: string;
   name: string;
   description: string;
-  condition: 'post_deleted' | 'caption_edited' | 'view_drop' | 'duplicate_bill' | 'gps_mismatch' | 'low_engagement' | 'new_account' | 'custom';
-  threshold?: number;
-  severity: 'warning' | 'critical' | 'auto_reject';
+  condition: 'POST_DELETED' | 'CAPTION_EDITED' | 'VIEW_DROP' | 'DUPLICATE_BILL' | 'GPS_MISMATCH' | 'LOW_ENGAGEMENT' | 'NEW_ACCOUNT' | 'CUSTOM';
+  threshold: number | null;
+  severity: 'WARNING' | 'CRITICAL' | 'AUTO_REJECT';
   penaltyPercent: number;
   isActive: boolean;
   timesTriggered: number;
-  lastTriggeredAt?: string;
-  createdBy: string;
+  lastTriggeredAt: string | null;
+  createdById: string;
   createdAt: string;
 }
 
 // ─── Milestone Badge ────────────────────────────────────
 export interface MilestoneBadge {
   id: string;
-  name: string;
+  label: string;
   description: string;
-  icon: string;
-  unlockCriteria: 'submission_count' | 'earnings_threshold' | 'streak' | 'rank' | 'custom';
-  thresholdValue: number;
-  rewardMultiplier?: number;
-  trustScoreBonus?: number;
+  icon: string | null;
+  unlockCriteria: string | null;
+  thresholdValue: number | null;
+  rewardMultiplier?: number | null;
+  trustScoreBonus?: number | null;
   isActive: boolean;
-  totalEarned: number;
   createdAt: string;
 }
 
 // ─── Leaderboard ────────────────────────────────────────
 export interface LeaderboardEntry {
-  rank: number;
+  id: string;
   creatorId: string;
-  creatorName: string;
-  creatorAvatar: string;
   weeklyEarnings: number;
-  points: number;
-  submissions: number;
-  tier: 'gold' | 'silver' | 'bronze';
-  badges: string[];
+  totalPoints: number;
+  rank: number;
+  creator: {
+    id: string;
+    name: string;
+    instagramHandle: string | null;
+    city: string | null;
+    profileImage: string | null;
+  };
 }
 
 export interface LeaderboardConfig {
   tiers: Array<{
     name: string;
-    rankRange: { min: number; max: number | null };
+    rankMin: number;
+    rankMax: number;
     minWeeklyEarnings: number;
     payoutMultiplier: number;
     color: string;
   }>;
-  resetDay: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+  resetDay: string;
   resetTime: string;
   timezone: string;
-  badgeTypes: Array<{
-    name: string;
-    criteria: string;
-    autoAssign: boolean;
-  }>;
-  weeklySnapshots: Array<{
-    weekStart: string;
-    weekEnd: string;
-    entries: LeaderboardEntry[];
-  }>;
 }
 
 // ─── Managed Location ───────────────────────────────────

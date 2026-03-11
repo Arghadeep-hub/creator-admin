@@ -13,7 +13,6 @@ interface PayoutsPoolCardProps {
   releaseQueueCount: number
   processingCount: number
   failedCount: number
-  failedPayoutRate: number
   payoutStatusData: Array<{ status: string; value: number }>
   onNavigate: (path: string) => void
 }
@@ -25,7 +24,6 @@ export const PayoutsPoolCard = memo(function PayoutsPoolCard({
   releaseQueueCount,
   processingCount,
   failedCount,
-  failedPayoutRate,
   payoutStatusData,
   onNavigate,
 }: PayoutsPoolCardProps) {
@@ -34,8 +32,8 @@ export const PayoutsPoolCard = memo(function PayoutsPoolCard({
       <CardHeader className="pb-2 px-4 sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm sm:text-base">Payouts & Pool</CardTitle>
-          <Badge variant={failedPayoutRate > 5 ? 'warning' : 'success'} className="text-xs font-semibold">
-            {failedPayoutRate}% failed
+          <Badge variant={failedCount > 5 ? 'warning' : failedCount > 0 ? 'warning' : 'success'} className="text-xs font-semibold">
+            {failedCount > 0 ? `${failedCount} failed (24h)` : 'All clear'}
           </Badge>
         </div>
       </CardHeader>

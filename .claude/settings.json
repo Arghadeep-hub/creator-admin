@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"badgeTypes\\\\|tiers\\\\|resetDay\" src/pages/leaderboard/_sections/*.tsx src/store/api/leaderboardApi.ts)",
+      "Bash(npx eslint src/pages/creators/CreatorsPage.tsx)",
+      "Bash(node -e \":*)",
+      "Bash(pnpm run:*)"
+    ]
+  }
+}

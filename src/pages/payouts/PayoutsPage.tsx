@@ -4,10 +4,20 @@ import { ShieldCheck, Wallet, Banknote, Download, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { PageLoader } from '@/components/ui/PageLoader'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { formatCurrency } from '@/lib/utils'
-import { MOCK_TRANSACTIONS, MOCK_POOL, MOCK_POOL_TRANSACTIONS } from '@/data/transactions'
+import {
+  useGetPoolBalanceQuery,
+  useGetPayoutTransactionsQuery,
+  useGetPayoutQueueQuery,
+  useGetPoolTransactionsQuery,
+  useDepositToPoolMutation,
+  useReleasePayoutsMutation,
+  useRetryPayoutMutation,
+} from '@/store/api/payoutsApi'
 import type { PayoutTransaction } from '@/types'
 import type { PayoutTab } from './payouts.types'
 
@@ -38,7 +48,7 @@ function CardSkeleton({ className }: { className?: string }) {
 
 export function PayoutsPage() {
   const { session } = useAuth()
-  const { success } = useToast()
+  const { success, error } = useToast()
   const navigate = useNavigate()
   const isSuperAdmin = session?.role === 'super_admin'
 
@@ -52,65 +62,108 @@ export function PayoutsPage() {
   const [confirmRelease, setConfirmRelease] = useState<{ txns: PayoutTransaction[]; type: 'release' | 'retry' } | null>(null)
   const [expandedTxn, setExpandedTxn] = useState<string | null>(null)
 
-  const pool = MOCK_POOL
-  const poolAvailable = pool.balance - pool.totalAllocated
+  // RTK Query hooks
+  const { data: pool, isLoading: isPoolLoading, isError: isPoolError, refetch: refetchPool } = useGetPoolBalanceQuery()
+  const { data: transactionsData, isLoading: isTxnsLoading } = useGetPayoutTransactionsQuery({
+    page: 1,
+    limit: 200,
+    status: (statusFilter as PayoutTransaction['status']) || undefined,
+  })
+  const { data: queueData, isLoading: isQueueLoading } = useGetPayoutQueueQuery({ page: 1, limit: 100 })
+  const { data: poolTxnsData, isLoading: isLedgerLoading } = useGetPoolTransactionsQuery({ page: 1, limit: 100 })
+
+  const [depositToPool, { isLoading: isDepositing }] = useDepositToPoolMutation()
+  const [releasePayouts] = useReleasePayoutsMutation()
+  const [retryPayout] = useRetryPayoutMutation()
+
+  const allTransactions = transactionsData?.data ?? []
+  const queueTransactions = queueData?.data ?? []
+  const poolLedger = poolTxnsData?.data ?? []
 
   const stats = useMemo(() => {
-    const locked = MOCK_TRANSACTIONS.filter(t => t.status === 'locked')
-    const processing = MOCK_TRANSACTIONS.filter(t => t.status === 'processing')
-    const paid = MOCK_TRANSACTIONS.filter(t => t.status === 'paid')
-    const failed = MOCK_TRANSACTIONS.filter(t => t.status === 'failed')
+    const locked = allTransactions.filter(t => t.status === 'locked')
+    const processing = allTransactions.filter(t => t.status === 'processing')
+    const paid = allTransactions.filter(t => t.status === 'paid')
+    const failed = allTransactions.filter(t => t.status === 'failed')
     return {
       lockedCount: locked.length, lockedAmount: locked.reduce((s, t) => s + t.amount, 0),
       processingCount: processing.length, processingAmount: processing.reduce((s, t) => s + t.amount, 0),
       paidCount: paid.length, paidAmount: paid.reduce((s, t) => s + t.amount, 0),
       failedCount: failed.length, failedAmount: failed.reduce((s, t) => s + t.amount, 0),
     }
-  }, [])
+  }, [allTransactions])
 
   const queueItems = useMemo(() => {
-    const failed = MOCK_TRANSACTIONS.filter(t => t.status === 'failed').sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    const processing = MOCK_TRANSACTIONS.filter(t => t.status === 'processing').sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    const locked = MOCK_TRANSACTIONS.filter(t => t.status === 'locked').sort((a, b) => new Date(a.unlockAt ?? a.createdAt).getTime() - new Date(b.unlockAt ?? b.createdAt).getTime())
+    const failed = queueTransactions.filter(t => t.status === 'failed').sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const processing = queueTransactions.filter(t => t.status === 'processing').sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const locked = queueTransactions.filter(t => t.status === 'locked').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     return { failed, processing, locked }
-  }, [])
+  }, [queueTransactions])
 
   const filtered = useMemo(() => {
-    return MOCK_TRANSACTIONS.filter(t => {
+    return allTransactions.filter(t => {
       const q = search.toLowerCase()
-      if (q && !t.creatorName.toLowerCase().includes(q) && !t.campaignName.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q)) return false
+      if (q && !t.creatorName?.toLowerCase().includes(q) && !t.restaurantName?.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q)) return false
       if (statusFilter && t.status !== statusFilter) return false
       return true
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [search, statusFilter])
+  }, [search, statusFilter, allTransactions])
 
-  const poolLedger = useMemo(() => [...MOCK_POOL_TRANSACTIONS].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [])
+  const sortedPoolLedger = useMemo(() => [...poolLedger].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [poolLedger])
 
   const hasActiveFilters = !!(search || statusFilter)
   const clearFilters = () => { setSearch(''); setStatusFilter('') }
   const selectableQueue = [...queueItems.failed, ...queueItems.processing]
   const allSelected = selectableQueue.length > 0 && selectableQueue.every(t => selectedIds.includes(t.id))
-  const utilizationPercent = pool.balance > 0 ? Math.round((pool.totalAllocated / pool.balance) * 100) : 0
+  const poolAvailable = pool ? pool.balance - pool.totalAllocated : 0
+  const utilizationPercent = pool && pool.balance > 0 ? Math.round((pool.totalAllocated / pool.balance) * 100) : 0
 
   function toggleSelect(id: string) { setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   function toggleSelectAll() { if (allSelected) setSelectedIds([]); else setSelectedIds(selectableQueue.map(t => t.id)) }
 
-  function handleConfirmRelease() {
+  async function handleConfirmRelease() {
     if (!confirmRelease) return
     const count = confirmRelease.txns.length
     const total = confirmRelease.txns.reduce((s, t) => s + t.amount, 0)
-    if (confirmRelease.type === 'release') success(`Released ${count} payout${count > 1 ? 's' : ''} — ${formatCurrency(total)}`)
-    else success(`Retrying ${count} failed payout${count > 1 ? 's' : ''}`)
+    try {
+      if (confirmRelease.type === 'release') {
+        await releasePayouts({ transactionIds: confirmRelease.txns.map(t => t.id) }).unwrap()
+        success(`Released ${count} payout${count > 1 ? 's' : ''} — ${formatCurrency(total)}`)
+      } else {
+        // Retry each failed payout
+        await Promise.all(confirmRelease.txns.map(t => retryPayout(t.id).unwrap()))
+        success(`Retrying ${count} failed payout${count > 1 ? 's' : ''}`)
+      }
+    } catch {
+      error('Failed to process payouts')
+    }
     setSelectedIds(prev => prev.filter(id => !confirmRelease.txns.find(t => t.id === id)))
     setConfirmRelease(null)
   }
 
-  function handleAddFunds() {
+  async function handleAddFunds() {
     const amount = parseFloat(fundAmount)
     if (!amount || amount <= 0) return
-    success(`Added ${formatCurrency(amount)} to pool`, fundDescription || 'Fund deposit')
-    setFundAmount(''); setFundDescription(''); setShowAddFunds(false)
+    try {
+      await depositToPool({ amount, description: fundDescription || 'Fund deposit' }).unwrap()
+      success(`Added ${formatCurrency(amount)} to pool`, fundDescription || 'Fund deposit')
+    } catch {
+      error('Failed to add funds')
+    }
+    setFundAmount('')
+    setFundDescription('')
+    setShowAddFunds(false)
   }
+
+  if (isPoolLoading) return <PageLoader />
+  if (isPoolError || !pool) return (
+    <EmptyState
+      title="Failed to load payout data"
+      description="Unable to fetch pool balance. Please try again."
+      actionLabel="Retry"
+      onAction={refetchPool}
+    />
+  )
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -120,12 +173,12 @@ export function PayoutsPage() {
         <div>
           <h1 className="text-lg sm:text-2xl font-bold font-display text-foreground tracking-tight">Payout Command Center</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            {isSuperAdmin ? `${stats.processingCount + stats.failedCount} payouts need attention` : `${MOCK_TRANSACTIONS.length} total transactions`}
+            {isSuperAdmin ? `${stats.processingCount + stats.failedCount} payouts need attention` : `${allTransactions.length} total transactions`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="rounded-xl"><Download className="h-4 w-4" />Export</Button>
-          {!isSuperAdmin && <Button size="sm" className="rounded-xl" onClick={() => setShowAddFunds(true)}><Plus className="h-4 w-4" />Add Funds</Button>}
+          {isSuperAdmin && <Button size="sm" className="rounded-xl" onClick={() => setShowAddFunds(true)} disabled={isDepositing}><Plus className="h-4 w-4" />Add Funds</Button>}
         </div>
       </div>
 
@@ -154,39 +207,47 @@ export function PayoutsPage() {
           <TabsTrigger value="transactions" className="flex-1 rounded-xl data-[state=active]:shadow-sm gap-1.5 text-xs py-2.5">
             <Wallet className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Transactions</span>
-            <Badge variant={activeTab === 'transactions' ? 'default' : 'gray'} className="text-[10px] px-1.5 py-0 min-w-5 justify-center">{MOCK_TRANSACTIONS.length}</Badge>
+            <Badge variant={activeTab === 'transactions' ? 'default' : 'gray'} className="text-[10px] px-1.5 py-0 min-w-5 justify-center">{allTransactions.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="ledger" className="flex-1 rounded-xl data-[state=active]:shadow-sm gap-1.5 text-xs py-2.5">
             <Banknote className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Ledger</span>
-            <Badge variant={activeTab === 'ledger' ? 'default' : 'gray'} className="text-[10px] px-1.5 py-0 min-w-5 justify-center">{MOCK_POOL_TRANSACTIONS.length}</Badge>
+            <Badge variant={activeTab === 'ledger' ? 'default' : 'gray'} className="text-[10px] px-1.5 py-0 min-w-5 justify-center">{sortedPoolLedger.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="queue">
           <Suspense fallback={<CardSkeleton className="min-h-[200px]" />}>
-            <QueueTab isSuperAdmin={isSuperAdmin} queueItems={queueItems} selectedIds={selectedIds}
-              expandedTxn={expandedTxn} stats={stats} selectableQueue={selectableQueue} allSelected={allSelected}
-              onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onSetConfirmRelease={setConfirmRelease}
-              onSetExpandedTxn={setExpandedTxn} onNavigate={path => navigate(path)} allTransactions={MOCK_TRANSACTIONS} />
+            {isQueueLoading ? <CardSkeleton className="min-h-[200px]" /> : (
+              <QueueTab isSuperAdmin={isSuperAdmin} queueItems={queueItems} selectedIds={selectedIds}
+                expandedTxn={expandedTxn} stats={stats} selectableQueue={selectableQueue} allSelected={allSelected}
+                onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} onSetConfirmRelease={setConfirmRelease}
+                onSetExpandedTxn={setExpandedTxn} onNavigate={path => navigate(path)} allTransactions={queueTransactions} />
+            )}
           </Suspense>
         </TabsContent>
 
         <TabsContent value="transactions">
           <Suspense fallback={<><CardSkeleton className="min-h-[80px]" /><CardSkeleton className="min-h-[200px] mt-4" /></>}>
-            <PayoutKpiCards stats={stats} statusFilter={statusFilter} onStatusFilter={v => setStatusFilter(prev => prev === v ? '' : v)} />
-            <div className="mt-4">
-              <TransactionsTab filtered={filtered} totalCount={MOCK_TRANSACTIONS.length} search={search}
-                statusFilter={statusFilter} hasActiveFilters={hasActiveFilters} isSuperAdmin={isSuperAdmin}
-                onSearchChange={setSearch} onStatusFilterChange={setStatusFilter} onClearFilters={clearFilters}
-                onSetConfirmRelease={setConfirmRelease} onNavigate={path => navigate(path)} />
-            </div>
+            {isTxnsLoading ? <CardSkeleton className="min-h-[280px]" /> : (
+              <>
+                <PayoutKpiCards stats={stats} statusFilter={statusFilter} onStatusFilter={v => setStatusFilter(prev => prev === v ? '' : v)} />
+                <div className="mt-4">
+                  <TransactionsTab filtered={filtered} totalCount={allTransactions.length} search={search}
+                    statusFilter={statusFilter} hasActiveFilters={hasActiveFilters} isSuperAdmin={isSuperAdmin}
+                    onSearchChange={setSearch} onStatusFilterChange={setStatusFilter} onClearFilters={clearFilters}
+                    onSetConfirmRelease={setConfirmRelease} onNavigate={path => navigate(path)} />
+                </div>
+              </>
+            )}
           </Suspense>
         </TabsContent>
 
         <TabsContent value="ledger">
           <Suspense fallback={<CardSkeleton className="min-h-[200px]" />}>
-            <LedgerTab poolLedger={poolLedger} isSuperAdmin={isSuperAdmin} onAddFunds={() => setShowAddFunds(true)} />
+            {isLedgerLoading ? <CardSkeleton className="min-h-[200px]" /> : (
+              <LedgerTab poolLedger={sortedPoolLedger} isSuperAdmin={isSuperAdmin} onAddFunds={() => setShowAddFunds(true)} />
+            )}
           </Suspense>
         </TabsContent>
       </Tabs>

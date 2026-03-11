@@ -1,11 +1,11 @@
 export type FormState = {
   name: string
-  businessName: string
-  category: string
+  restaurantName: string
+  cuisine: string
   city: string
   address: string
   description: string
-  status: string
+  isActive: boolean
   deadline: string
   payoutBase: number
   payoutMin: number
@@ -16,7 +16,8 @@ export type FormState = {
   difficulty: string
   estimatedVisitTimeMins: number
   checkInRadiusMeters: number
-  autoCalculateMetrics: boolean
+  latitude: number
+  longitude: number
 }
 
 export type SetField = <K extends keyof FormState>(key: K, value: FormState[K]) => void
@@ -35,12 +36,6 @@ export const DIFFICULTIES = [
   { value: 'Easy',   label: 'Easy — Quick visit, low effort' },
   { value: 'Medium', label: 'Medium — Standard campaign' },
   { value: 'Hard',   label: 'Hard — Detailed content required' },
-]
-
-export const STATUSES = [
-  { value: 'draft',  label: 'Draft — Not visible to creators' },
-  { value: 'active', label: 'Active — Live and accepting sign-ups' },
-  { value: 'paused', label: 'Paused — Temporarily hidden' },
 ]
 
 export const INR = new Intl.NumberFormat('en-IN', {
