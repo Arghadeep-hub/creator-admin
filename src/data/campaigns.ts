@@ -1,6 +1,6 @@
-import type { CampaignAdmin } from '@/types';
-
-export const MOCK_CAMPAIGNS: CampaignAdmin[] = [
+// Mock campaign data — shape diverges from CampaignAdmin (API type) intentionally for UI demos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_CAMPAIGNS: any[] = [
   {
     id: 'camp-001',
     createdBy: 'admin-001',

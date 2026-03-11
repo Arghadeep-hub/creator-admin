@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Clock, CheckCircle, FileSearch, ShieldAlert, Send, Banknote,
 } from 'lucide-react'
-import { formatCurrency, formatNumber } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
 import {
-  CREATOR_GROWTH_DATA, SUBMISSION_WEEKLY_DATA, PAYOUT_STATUS_DATA,
-  ACTIVATION_FUNNEL_DATA, DASHBOARD_TOP_CAMPAIGNS,
-} from '@/data/chart-data'
-import { MOCK_ACTIVITY_FEED } from '@/data/activity-feed'
-import { MOCK_NOTIFICATIONS } from '@/data/notifications'
-import { MOCK_SUBMISSIONS } from '@/data/submissions'
-import { MOCK_POOL, MOCK_TRANSACTIONS } from '@/data/transactions'
+  useGetDashboardStatsQuery,
+  useGetCreatorGrowthQuery,
+  useGetSubmissionVolumeQuery,
+  useGetTopCampaignsQuery,
+  useGetActivationFunnelQuery,
+  useGetActivityFeedQuery,
+  useGetOperationalHealthQuery,
+} from '@/store/api/dashboardApi'
 import { getGreeting, toAbsolutePath, PERIOD_OPTIONS } from './dashboard.types'
 import type { DashboardPeriod, InsightTone } from './dashboard.types'
 
@@ -52,6 +53,13 @@ function ChartRowSkeleton() {
   )
 }
 
+const PAYOUT_STATUS_DATA_FALLBACK = [
+  { status: 'Paid', value: 0 },
+  { status: 'Processing', value: 0 },
+  { status: 'Pending', value: 0 },
+  { status: 'Failed', value: 0 },
+]
+
 export function DashboardPage() {
   const navigate = useNavigate()
   const [period, setPeriod] = useState<DashboardPeriod>('30d')
@@ -61,65 +69,72 @@ export function DashboardPage() {
   const todayLabel = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
 
   const periodConfig = PERIOD_OPTIONS.find(o => o.value === period) ?? PERIOD_OPTIONS[1]
-  const periodStart = useMemo(() => {
-    const start = new Date(now)
-    start.setDate(start.getDate() - periodConfig.days)
-    return start
-  }, [now, periodConfig.days])
 
-  const chartCreatorGrowthData = useMemo(() => {
-    if (period === '7d') return CREATOR_GROWTH_DATA.slice(-6)
-    if (period === '30d') return CREATOR_GROWTH_DATA.slice(-9)
-    return CREATOR_GROWTH_DATA
-  }, [period])
+  // ── RTK Query hooks ──
+  const { data: stats } = useGetDashboardStatsQuery({ period })
+  const { data: creatorGrowthData = [] } = useGetCreatorGrowthQuery({ period })
+  const { data: submissionVolumeData = [] } = useGetSubmissionVolumeQuery({ period })
+  const { data: topCampaigns = [] } = useGetTopCampaignsQuery({ limit: 5 })
+  const { data: activationFunnelData } = useGetActivationFunnelQuery()
+  const { data: activityFeedData = [] } = useGetActivityFeedQuery({ limit: 12 })
+  const { data: operationalHealth } = useGetOperationalHealthQuery()
 
-  const chartSubmissionData = useMemo(() => {
-    if (period === '7d') return SUBMISSION_WEEKLY_DATA.slice(-4)
-    if (period === '30d') return SUBMISSION_WEEKLY_DATA.slice(-6)
-    return SUBMISSION_WEEKLY_DATA
-  }, [period])
+  // ── Derived values from API stats ──
+  const pendingSubmissions = stats?.pendingSubmissions ?? 0
+  const totalCreators = stats?.totalCreators ?? 0
+  const activeCampaigns = stats?.activeCampaigns ?? 0
+  const approvalRate = stats?.approvalRate ?? 0
+  const poolBalance = operationalHealth?.poolBalance ?? 0
+  const releaseQueueCount = stats?.pendingPayouts ?? 0
+  const overdueReviews = stats?.submissionsNeedReviewToday ?? 0
+  const criticalAlerts: number = 0 // comes from notifications; placeholder
 
-  const recentSubmissions = useMemo(
-    () => MOCK_SUBMISSIONS.filter(s => new Date(s.submittedAt) >= periodStart),
-    [periodStart]
-  )
-  const reviewedInPeriod = useMemo(
-    () => recentSubmissions.filter(s => s.status !== 'pending'),
-    [recentSubmissions]
-  )
-  const approvedInPeriod = useMemo(
-    () => reviewedInPeriod.filter(s => s.status === 'approved' || s.status === 'paid'),
-    [reviewedInPeriod]
-  )
-  const approvalRate = reviewedInPeriod.length > 0
-    ? (approvedInPeriod.length / reviewedInPeriod.length) * 100
+  const failedPayoutsCount = operationalHealth?.failedPayoutsLast24h ?? 0
+  const kycPendingCount = operationalHealth?.pendingKycCount ?? 0
+
+  // Pool utilization from pending payout amount vs pool balance
+  const pendingPayoutAmount = stats?.pendingPayouts ?? 0
+  const poolUtilization = poolBalance > 0 ? Math.min(Math.round((pendingPayoutAmount / poolBalance) * 100), 100) : 0
+  const poolAvailable = Math.max(poolBalance - pendingPayoutAmount, 0)
+
+  const activationRate = activationFunnelData
+    ? (activationFunnelData.registered > 0
+        ? Math.round((activationFunnelData.firstSubmission / activationFunnelData.registered) * 100)
+        : 0)
     : 0
 
-  const pendingSubmissions = MOCK_SUBMISSIONS.filter(s => s.status === 'pending').length
-  const overdueReviews = MOCK_SUBMISSIONS.filter(
-    s => s.status === 'pending' && (now.getTime() - new Date(s.submittedAt).getTime()) / 3600000 > 48
-  ).length
-  const highRiskPending = MOCK_SUBMISSIONS.filter(
-    s => s.status === 'pending'
-      && (s.trustSignals.postDeleted || s.trustSignals.captionEdited || !s.trustSignals.gpsVerified)
-  ).length
+  // Map API data shapes to what child components expect
+  const chartCreatorGrowthData = useMemo(
+    () => creatorGrowthData.map(d => ({ month: d.week, total: d.creators, new: d.creators })),
+    [creatorGrowthData],
+  )
 
-  const unreadNotifications = MOCK_NOTIFICATIONS.filter(n => !n.read)
-  const criticalAlerts = unreadNotifications.filter(n => n.severity === 'critical').length
-  const kycPendingAlerts = unreadNotifications.filter(n => n.type === 'kyc_pending').length
+  const chartSubmissionData = useMemo(
+    () => submissionVolumeData.map(d => ({ week: d.week, total: d.submissions, approved: d.approved, rejected: d.rejected })),
+    [submissionVolumeData],
+  )
 
-  const firstActivationStep = ACTIVATION_FUNNEL_DATA[0]?.count ?? 0
-  const finalActivationStep = ACTIVATION_FUNNEL_DATA[ACTIVATION_FUNNEL_DATA.length - 1]?.count ?? 0
-  const activationRate = firstActivationStep > 0 ? (finalActivationStep / firstActivationStep) * 100 : 0
-  const failedPayoutRate = PAYOUT_STATUS_DATA.find(item => item.status === 'Failed')?.value ?? 0
+  const topCampaignsMapped = useMemo(
+    () => topCampaigns.map(c => ({
+      name: c.name,
+      submissions: c.totalSubmissions,
+      avgPayout: c.totalSubmissions > 0 ? Math.round(c.totalPaidOut / c.totalSubmissions) : 0,
+      success: Math.round(c.successRate),
+    })),
+    [topCampaigns],
+  )
 
-  const poolAvailable = MOCK_POOL.balance - MOCK_POOL.totalAllocated
-  const poolUtilization = MOCK_POOL.balance > 0 ? Math.round((MOCK_POOL.totalAllocated / MOCK_POOL.balance) * 100) : 0
-  const processingTxns = MOCK_TRANSACTIONS.filter(t => t.status === 'processing')
-  const failedTxns = MOCK_TRANSACTIONS.filter(t => t.status === 'failed')
-  const releaseQueueCount = processingTxns.length + failedTxns.length
-  const processingAmount = processingTxns.reduce((s, t) => s + t.amount, 0)
-  const failedAmount = failedTxns.reduce((s, t) => s + t.amount, 0)
+  const funnelData = useMemo(() => {
+    if (!activationFunnelData) return []
+    const total = activationFunnelData.registered || 1
+    return [
+      { step: 'Registered',          count: activationFunnelData.registered,          percent: 100 },
+      { step: 'Instagram Connected', count: activationFunnelData.instagramConnected,  percent: Math.round((activationFunnelData.instagramConnected / total) * 100) },
+      { step: 'KYC Submitted',       count: activationFunnelData.kycSubmitted,        percent: Math.round((activationFunnelData.kycSubmitted / total) * 100) },
+      { step: 'KYC Verified',        count: activationFunnelData.kycVerified,         percent: Math.round((activationFunnelData.kycVerified / total) * 100) },
+      { step: 'First Submission',    count: activationFunnelData.firstSubmission,     percent: Math.round((activationFunnelData.firstSubmission / total) * 100) },
+    ]
+  }, [activationFunnelData])
 
   const quickActions = useMemo(() => [
     {
@@ -135,7 +150,7 @@ export function DashboardPage() {
       description: `${releaseQueueCount} payout${releaseQueueCount === 1 ? '' : 's'} awaiting action`,
       icon: Send,
       href: '/payouts',
-      tone: (failedTxns.length > 0 ? 'critical' : releaseQueueCount > 0 ? 'warning' : 'success') as InsightTone,
+      tone: (releaseQueueCount > 0 ? 'warning' : 'success') as InsightTone,
       count: releaseQueueCount,
     },
     {
@@ -148,13 +163,13 @@ export function DashboardPage() {
     },
     {
       label: 'KYC Verification',
-      description: `${kycPendingAlerts} pending request${kycPendingAlerts === 1 ? '' : 's'}`,
+      description: `${kycPendingCount} pending KYC request${kycPendingCount === 1 ? '' : 's'}`,
       icon: CheckCircle,
       href: '/creators?filter=kyc_pending',
-      tone: (kycPendingAlerts > 0 ? 'warning' : 'success') as InsightTone,
-      count: kycPendingAlerts,
+      tone: (kycPendingCount > 0 ? 'warning' : 'success') as InsightTone,
+      count: kycPendingCount,
     },
-  ], [pendingSubmissions, releaseQueueCount, failedTxns.length, criticalAlerts, kycPendingAlerts])
+  ], [pendingSubmissions, releaseQueueCount, criticalAlerts, kycPendingCount])
 
   const operationalStats = useMemo(() => [
     {
@@ -162,7 +177,7 @@ export function DashboardPage() {
       label: 'Approval Rate',
       value: `${approvalRate.toFixed(1)}%`,
       numericValue: approvalRate,
-      helper: `${approvedInPeriod.length}/${reviewedInPeriod.length || 0} approved in ${periodConfig.label}`,
+      helper: `Based on ${periodConfig.label}`,
       tone: (approvalRate >= 85 ? 'success' : 'warning') as InsightTone,
     },
     {
@@ -170,28 +185,26 @@ export function DashboardPage() {
       label: 'Overdue Reviews',
       value: formatNumber(overdueReviews),
       numericValue: overdueReviews > 0 ? Math.max(100 - overdueReviews * 10, 20) : 100,
-      helper: 'Pending for more than 48h',
+      helper: 'Pending for more than 24h',
       tone: (overdueReviews === 0 ? 'success' : 'critical') as InsightTone,
     },
     {
       icon: AlertTriangle,
-      label: 'Risky Pending',
-      value: formatNumber(highRiskPending),
-      numericValue: highRiskPending > 0 ? Math.max(100 - highRiskPending * 15, 15) : 100,
-      helper: 'Need manual verification',
-      tone: (highRiskPending > 0 ? 'warning' : 'success') as InsightTone,
+      label: 'Failed Payouts',
+      value: String(failedPayoutsCount),
+      numericValue: failedPayoutsCount > 0 ? Math.max(100 - failedPayoutsCount * 10, 10) : 100,
+      helper: 'Failed payouts in last 24h',
+      tone: (failedPayoutsCount > 5 ? 'critical' : failedPayoutsCount > 0 ? 'warning' : 'success') as InsightTone,
     },
     {
       icon: Banknote,
-      label: 'Pool Utilization',
-      value: `${poolUtilization}%`,
-      numericValue: poolUtilization,
-      helper: `${formatCurrency(poolAvailable)} available of ${formatCurrency(MOCK_POOL.balance)}`,
-      tone: (poolUtilization > 80 ? 'critical' : poolUtilization > 50 ? 'warning' : 'success') as InsightTone,
+      label: 'Fraud Flagged Today',
+      value: `${operationalHealth?.fraudFlaggedToday ?? 0}`,
+      numericValue: operationalHealth?.fraudFlaggedToday ?? 0,
+      helper: `${operationalHealth?.avgSubmissionReviewHours?.toFixed(1) ?? '0'}h avg review time`,
+      tone: ((operationalHealth?.fraudFlaggedToday ?? 0) > 5 ? 'warning' : 'success') as InsightTone,
     },
-  ], [approvalRate, approvedInPeriod.length, reviewedInPeriod.length, periodConfig.label, overdueReviews, highRiskPending, poolUtilization, poolAvailable])
-
-  const recentActivities = useMemo(() => MOCK_ACTIVITY_FEED.slice(0, 12), [])
+  ], [approvalRate, periodConfig.label, overdueReviews, failedPayoutsCount, operationalHealth])
 
   const handleNavigate = (target?: string) => {
     if (!target) return
@@ -210,7 +223,7 @@ export function DashboardPage() {
         onPeriodChange={setPeriod}
         pendingSubmissions={pendingSubmissions}
         criticalAlerts={criticalAlerts}
-        poolBalance={MOCK_POOL.balance}
+        poolBalance={poolBalance}
         releaseQueueCount={releaseQueueCount}
         overdueReviews={overdueReviews}
       />
@@ -218,10 +231,15 @@ export function DashboardPage() {
       <KpiStatCards
         pendingSubmissions={pendingSubmissions}
         overdueReviews={overdueReviews}
-        poolBalance={MOCK_POOL.balance}
-        pendingReleaseAmount={processingAmount + failedAmount}
-        hasFailedTxns={failedTxns.length > 5}
+        poolBalance={poolBalance}
+        pendingReleaseAmount={pendingPayoutAmount}
+        hasFailedTxns={failedPayoutsCount > 5}
         onNavigate={navigate}
+        totalCreators={totalCreators}
+        activeCampaigns={activeCampaigns}
+        creatorsGrowthPercent={stats?.creatorsGrowthPercent}
+        submissionsGrowthPercent={stats?.submissionsGrowthPercent}
+        payoutsGrowthPercent={stats?.payoutsGrowthPercent}
       />
 
       <QuickActionsCard
@@ -235,16 +253,16 @@ export function DashboardPage() {
           <CreatorGrowthChart
             data={chartCreatorGrowthData}
             periodLabel={periodConfig.label}
+            newThisMonth={stats?.newCreatorsThisMonth}
           />
           <PayoutsPoolCard
-            poolBalance={MOCK_POOL.balance}
+            poolBalance={poolBalance}
             poolUtilization={poolUtilization}
             poolAvailable={poolAvailable}
             releaseQueueCount={releaseQueueCount}
-            processingCount={processingTxns.length}
-            failedCount={failedTxns.length}
-            failedPayoutRate={failedPayoutRate}
-            payoutStatusData={PAYOUT_STATUS_DATA}
+            processingCount={0}
+            failedCount={failedPayoutsCount}
+            payoutStatusData={PAYOUT_STATUS_DATA_FALLBACK}
             onNavigate={navigate}
           />
         </div>
@@ -255,7 +273,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
           <SubmissionVolumeChart data={chartSubmissionData} />
           <ActivationFunnelCard
-            data={ACTIVATION_FUNNEL_DATA}
+            data={funnelData}
             activationRate={activationRate}
           />
         </div>
@@ -265,12 +283,12 @@ export function DashboardPage() {
       <Suspense fallback={<ChartRowSkeleton />}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
           <TopCampaignsCard
-            campaigns={DASHBOARD_TOP_CAMPAIGNS}
+            campaigns={topCampaignsMapped}
             onNavigate={navigate}
           />
           <ActivityFeedCard
-            activities={recentActivities}
-            totalCount={MOCK_ACTIVITY_FEED.length}
+            activities={activityFeedData}
+            totalCount={activityFeedData.length}
             onNavigate={handleNavigate}
           />
         </div>

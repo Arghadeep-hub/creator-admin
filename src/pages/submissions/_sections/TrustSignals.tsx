@@ -7,11 +7,11 @@ interface Props {
 }
 
 const TRUST_CHECKS = [
-  { label: 'GPS Verified',      key: (s: SubmissionAdmin) =>  s.trustSignals.gpsVerified },
-  { label: 'Bill Verified',     key: (s: SubmissionAdmin) =>  s.trustSignals.billVerified },
-  { label: 'Post Not Deleted',  key: (s: SubmissionAdmin) => !s.trustSignals.postDeleted },
-  { label: 'Caption Unchanged', key: (s: SubmissionAdmin) => !s.trustSignals.captionEdited },
-  { label: 'Normal Engagement', key: (s: SubmissionAdmin) => !s.trustSignals.lowEngagement },
+  { label: 'GPS Verified',      key: (s: SubmissionAdmin) =>  s.gpsVerified },
+  { label: 'Bill Verified',     key: (s: SubmissionAdmin) =>  s.billVerified },
+  { label: 'Post Not Deleted',  key: (s: SubmissionAdmin) => !s.postDeleted },
+  { label: 'Caption Unchanged', key: (s: SubmissionAdmin) => !s.captionEdited },
+  { label: 'Normal Engagement', key: (s: SubmissionAdmin) => !s.lowEngagement },
 ]
 
 export default function TrustSignals({ sub }: Props) {

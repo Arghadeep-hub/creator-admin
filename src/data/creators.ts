@@ -1,6 +1,6 @@
-import type { CreatorAdmin } from '@/types';
-
-export const MOCK_CREATORS: CreatorAdmin[] = [
+// Mock creator data — shape diverges from CreatorAdmin (API type) intentionally for UI demos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_CREATORS: any[] = [
   // ── 1. Priya Sharma ──────────────────────────────────────
   {
     id: 'creator-001',

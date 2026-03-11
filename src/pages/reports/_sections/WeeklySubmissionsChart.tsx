@@ -2,14 +2,25 @@ import { memo } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { SUBMISSION_WEEKLY_DATA } from '@/data/chart-data'
 import { ChartCard, CHART_MARGIN, TOOLTIP_STYLE, TICK_PROPS } from '../reports.types'
+import type { SubmissionsReport } from '@/store/api/reportsApi'
 
-export const WeeklySubmissionsChart = memo(function WeeklySubmissionsChart() {
+interface Props {
+  submissionsReport: SubmissionsReport | null
+}
+
+export const WeeklySubmissionsChart = memo(function WeeklySubmissionsChart({ submissionsReport }: Props) {
+  const data = submissionsReport?.volumeByDay?.map(d => ({
+    week: d.date,
+    total: d.submitted,
+    approved: d.approved,
+    rejected: d.rejected,
+  })) ?? []
+
   return (
-    <ChartCard title="Weekly Submission Trends" subtitle="Total, approved & rejected over time">
+    <ChartCard title="Submission Volume" subtitle="Submitted, approved & rejected over time">
       <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={SUBMISSION_WEEKLY_DATA} margin={CHART_MARGIN}>
+        <BarChart data={data} margin={CHART_MARGIN}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis dataKey="week" tick={TICK_PROPS} tickLine={false} axisLine={false} />
           <YAxis tick={TICK_PROPS} tickLine={false} axisLine={false} />

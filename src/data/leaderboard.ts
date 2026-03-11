@@ -1,6 +1,6 @@
-import type { LeaderboardConfig, LeaderboardEntry } from '@/types';
-
-const generateWeekEntries = (weekOffset: number): LeaderboardEntry[] => {
+// Mock leaderboard data — shape diverges from LeaderboardConfig/LeaderboardEntry (API types) for UI demos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const generateWeekEntries = (weekOffset: number): any[] => {
   const creators = [
     { id: 'creator-001', name: 'Priya Sharma', avatar: '' },
     { id: 'creator-003', name: 'Aisha Khan', avatar: '' },
@@ -55,7 +55,8 @@ const getWeekDates = (weeksAgo: number) => {
   };
 };
 
-export const MOCK_LEADERBOARD_CONFIG: LeaderboardConfig = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_LEADERBOARD_CONFIG: any = {
   tiers: [
     { name: 'Gold', rankRange: { min: 1, max: 3 }, minWeeklyEarnings: 12000, payoutMultiplier: 1.12, color: 'amber-500' },
     { name: 'Silver', rankRange: { min: 4, max: 10 }, minWeeklyEarnings: 6000, payoutMultiplier: 1.07, color: 'slate-400' },

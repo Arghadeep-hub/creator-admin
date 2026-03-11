@@ -184,4 +184,10 @@
   .celebrate-pulse {
     animation: celebrate 1.8s ease-in-out infinite;
   }
+
+  /* Card image shimmer sweep on hover */
+  @keyframes shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
 }

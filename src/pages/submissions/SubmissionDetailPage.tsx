@@ -2,15 +2,17 @@ import { lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, AlertTriangle, Eye, Heart, MessageCircle,
-  ChevronRight, ExternalLink, Play, Trophy,
+  ChevronRight, ExternalLink, Play,
 } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PageLoader } from '@/components/ui/PageLoader'
 import { formatCurrency, formatNumber } from '@/lib/utils'
-import { MOCK_SUBMISSIONS } from '@/data/submissions'
-import { MOCK_CREATORS } from '@/data/creators'
+import { useGetSubmissionQuery } from '@/store/api/submissionsApi'
+import { useGetCreatorQuery } from '@/store/api/creatorsApi'
+import type { SubmissionAdmin } from '@/types'
 
 // ── Lazy-loaded sections (each = separate JS chunk) ───────────────────────────
 const VerificationTimeline = lazy(() => import('./_sections/VerificationTimeline'))
@@ -33,14 +35,19 @@ function SectionSkeleton() {
   )
 }
 
+function CreatorLoader({ creatorId, sub }: { creatorId: string; sub: SubmissionAdmin }) {
+  const { data: creator = null } = useGetCreatorQuery(creatorId, { skip: !creatorId })
+  return <RightColumn sub={sub} creator={creator} />
+}
+
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const sub     = MOCK_SUBMISSIONS.find(s => s.id === id)
-  const creator = sub ? (MOCK_CREATORS.find(c => c.id === sub.creatorId) ?? null) : null
+  const { data: sub, isLoading, isError } = useGetSubmissionQuery(id ?? '', { skip: !id })
 
-  if (!sub) {
+  if (isLoading) return <PageLoader />
+  if (isError || !sub) {
     return (
       <EmptyState
         title="Submission not found"
@@ -86,11 +93,11 @@ export function SubmissionDetailPage() {
         <div className="h-1 bg-linear-to-r from-orange-300 via-primary to-orange-300" />
         <div className="p-4">
           <div className="flex items-start gap-3">
-            <Avatar name={sub.creatorName} size="lg" className="shrink-0" />
+            <Avatar name={sub.creator?.name ?? 'Unknown'} size="lg" className="shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base leading-tight">{sub.creatorName}</p>
-              <p className="text-sm text-muted-foreground">{sub.creatorHandle}</p>
-              <p className="text-xs text-muted-foreground mt-1 truncate">{sub.campaignName}</p>
+              <p className="font-bold text-base leading-tight">{sub.creator?.name}</p>
+              <p className="text-sm text-muted-foreground">{sub.creator?.instagramHandle}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{sub.campaign?.restaurantName}</p>
             </div>
             <div className="text-right shrink-0">
               <p className="text-xl font-bold text-primary num-font">{formatCurrency(sub.projectedPayout)}</p>
@@ -100,12 +107,14 @@ export function SubmissionDetailPage() {
 
           {/* Metric chips */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/60 flex-wrap">
-            {([
-              { icon: Eye,           val: formatNumber(sub.metricsCurrent.views),           label: 'views' },
-              { icon: Heart,         val: formatNumber(sub.metricsCurrent.likes),           label: 'likes' },
-              { icon: MessageCircle, val: formatNumber(sub.metricsCurrent.comments),        label: 'comments' },
-              { icon: Trophy,        val: `#${sub.ranking}/${sub.totalRankEntries}`,        label: 'rank' },
-            ] as const).map(({ icon: Icon, val, label }) => (
+            {(() => {
+              const latest = sub.submissionMetrics?.[sub.submissionMetrics.length - 1]
+              return [
+                { icon: Eye,           val: formatNumber(latest?.views ?? 0),    label: 'views' },
+                { icon: Heart,         val: formatNumber(latest?.likes ?? 0),    label: 'likes' },
+                { icon: MessageCircle, val: formatNumber(latest?.comments ?? 0), label: 'comments' },
+              ] as const
+            })().map(({ icon: Icon, val, label }) => (
               <span key={label} className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2.5 py-1">
                 <Icon className="h-3 w-3 text-slate-400" />{val}
               </span>
@@ -129,7 +138,7 @@ export function SubmissionDetailPage() {
         {/* Right column — appears first on mobile so Decision Panel is immediately actionable */}
         <div className="order-1 lg:order-2">
           <Suspense fallback={<div className="space-y-3"><SectionSkeleton /><SectionSkeleton /></div>}>
-            <RightColumn sub={sub} creator={creator} />
+            <CreatorLoader creatorId={sub.creatorId} sub={sub} />
           </Suspense>
         </div>
 
@@ -144,7 +153,7 @@ export function SubmissionDetailPage() {
                 {/* Top bar */}
                 <div className="absolute top-3 left-3 right-3 flex items-center gap-2">
                   <div className="h-6 w-6 rounded-full bg-white/30 backdrop-blur-sm border border-white/40 shrink-0" />
-                  <span className="text-xs text-white font-semibold truncate">{sub.creatorHandle}</span>
+                  <span className="text-xs text-white font-semibold truncate">{sub.creator?.instagramHandle}</span>
                   <span className="ml-auto text-[10px] text-white/70 uppercase tracking-widest font-medium shrink-0">Reel</span>
                 </div>
                 {/* Play CTA */}
@@ -178,7 +187,7 @@ export function SubmissionDetailPage() {
             <CaptionHashtags sub={sub} />
           </Suspense>
 
-          {sub.checkInLocation && (
+          {(sub.gpsLatitude !== null && sub.gpsLatitude !== undefined) && (
             <Suspense fallback={<SectionSkeleton />}>
               <GpsVerification sub={sub} />
             </Suspense>

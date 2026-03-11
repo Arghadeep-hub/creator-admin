@@ -9,7 +9,7 @@ import { CATEGORIES, DIFFICULTIES } from './types'
 import type { FormState, SetField } from './types'
 
 interface Props {
-  form: Pick<FormState, 'name' | 'businessName' | 'category' | 'difficulty' | 'city' | 'address' | 'description'>
+  form: Pick<FormState, 'name' | 'restaurantName' | 'cuisine' | 'difficulty' | 'city' | 'address' | 'description'>
   set: SetField
 }
 
@@ -37,8 +37,8 @@ export const BasicInfoCard = memo(function BasicInfoCard({ form, set }: Props) {
           <div className="space-y-1.5">
             <Label>Business Name <span className="text-red-500">*</span></Label>
             <Input
-              value={form.businessName}
-              onChange={e => set('businessName', e.target.value)}
+              value={form.restaurantName}
+              onChange={e => set('restaurantName', e.target.value)}
               placeholder="e.g. Bombay Bistro"
             />
           </div>
@@ -48,8 +48,8 @@ export const BasicInfoCard = memo(function BasicInfoCard({ form, set }: Props) {
           <div className="space-y-1.5">
             <Label>Category <span className="text-red-500">*</span></Label>
             <Select
-              value={form.category}
-              onValueChange={v => set('category', v)}
+              value={form.cuisine}
+              onValueChange={v => set('cuisine', v)}
               options={CATEGORIES}
             />
           </div>

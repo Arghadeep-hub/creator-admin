@@ -1,4 +1,4 @@
-import type { SubmissionAdmin } from '@/types';
+// Mock submission data — shape diverges from SubmissionAdmin (API type) intentionally for UI demos
 
 // ─── Campaign name mapping ─────────────────────────────
 const campaignNames: Record<string, string> = {
@@ -245,7 +245,8 @@ const seeds: SubmissionSeed[] = [
 ];
 
 // ─── Build submissions from seeds ──────────────────────
-function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildSubmission(seed: SubmissionSeed): any {
   const id = `sub-${String(seed.idx).padStart(3, '0')}`;
   const campName = campaignNames[seed.campId] ?? 'Unknown Campaign';
   const creator = creators[seed.creatorId] ?? { name: 'Unknown Creator', handle: '@unknown' };
@@ -291,7 +292,7 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
   const h72Timestamp = hoursAfter(submittedAt, 72);
 
   // Stage timestamps
-  const stageTimestamps: SubmissionAdmin['stageTimestamps'] = {
+  const stageTimestamps: Record<string, string> = {
     t0: t0Timestamp,
   };
   if (seed.verificationStage === 'h24' || seed.verificationStage === 'h72' || seed.verificationStage === 'completed') {
@@ -305,7 +306,7 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
   }
 
   // Rank history
-  const rankHistory: SubmissionAdmin['rankHistory'] = [
+  const rankHistory: Array<{ stage: string; rank: number; timestamp: string }> = [
     { stage: 'T0', rank: seed.ranking + 3 > seed.totalRankEntries ? seed.ranking : seed.ranking + 3, timestamp: t0Timestamp },
   ];
   if (stageTimestamps.h24) {
@@ -326,7 +327,7 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
   }
 
   // Admin notes
-  const adminNotes: SubmissionAdmin['adminNotes'] = [];
+  const adminNotes: Array<{ adminId: string; adminName: string; note: string; timestamp: string }> = [];
   if (seed.hasAdminNotes) {
     const adminPool = [
       { id: 'admin-001', name: 'Vikram Singh' },
@@ -372,7 +373,7 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
   }
 
   // Trust signals
-  const trustSignals: SubmissionAdmin['trustSignals'] = {
+  const trustSignals: Record<string, boolean> = {
     gpsVerified: seed.withinRadius && seed.hasCheckIn,
     billVerified: seed.billVerificationStatus === 'verified',
     postDeleted: false,
@@ -385,7 +386,7 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
     ? 0
     : seed.base + seed.engagementBonus + seed.trustBonus + seed.penalties;
 
-  const payoutBreakdown: SubmissionAdmin['payoutBreakdown'] = {
+  const payoutBreakdown: Record<string, number> = {
     base: seed.base,
     engagementBonus: seed.engagementBonus,
     trustBonus: seed.trustBonus,
@@ -479,4 +480,5 @@ function buildSubmission(seed: SubmissionSeed): SubmissionAdmin {
   };
 }
 
-export const MOCK_SUBMISSIONS: SubmissionAdmin[] = seeds.map(buildSubmission);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_SUBMISSIONS: any[] = seeds.map(buildSubmission);

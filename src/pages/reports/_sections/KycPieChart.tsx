@@ -1,25 +1,41 @@
 import { memo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { KYC_DISTRIBUTION } from '@/data/chart-data'
 import { ChartCard, TOOLTIP_STYLE } from '../reports.types'
+import type { CreatorsReport } from '@/store/api/reportsApi'
 
-export const KycPieChart = memo(function KycPieChart() {
+const KYC_COLORS: Record<string, string> = {
+  verified: '#10b981',
+  pending: '#f59e0b',
+  rejected: '#ef4444',
+}
+
+interface Props {
+  creatorsReport: CreatorsReport | null
+}
+
+export const KycPieChart = memo(function KycPieChart({ creatorsReport }: Props) {
+  const data = creatorsReport?.kycDistribution?.map(d => ({
+    status: d.status,
+    count: d.count,
+    color: KYC_COLORS[d.status] ?? '#94a3b8',
+  })) ?? []
+
   return (
     <ChartCard title="KYC Status Distribution" subtitle="Creator verification breakdown">
       <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie
-            data={KYC_DISTRIBUTION}
+            data={data}
             cx="50%"
             cy="50%"
             outerRadius={80}
             innerRadius={40}
             dataKey="count"
             nameKey="status"
-            label={(props) => `${(props as any).status}: ${(props as any).count}`}
+            label={(props) => `${(props as unknown as { status: string }).status}: ${(props as unknown as { count: number }).count}`}
             labelLine={false}
           >
-            {KYC_DISTRIBUTION.map((entry, i) => (
+            {data.map((entry, i) => (
               <Cell key={i} fill={entry.color} />
             ))}
           </Pie>

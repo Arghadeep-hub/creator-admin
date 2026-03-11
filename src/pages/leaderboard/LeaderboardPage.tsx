@@ -2,8 +2,16 @@ import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Trophy, Settings, Calendar } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { PageLoader } from '@/components/ui/PageLoader'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { useToast } from '@/contexts/ToastContext'
-import { MOCK_LEADERBOARD_CONFIG, CURRENT_LEADERBOARD } from '@/data/leaderboard'
+import {
+  useGetLeaderboardQuery,
+  useGetLeaderboardConfigQuery,
+  useGetLeaderboardSnapshotsQuery,
+  useUpdateLeaderboardConfigMutation,
+  useTriggerLeaderboardSnapshotMutation,
+} from '@/store/api/leaderboardApi'
 
 // ── Above the fold — regular imports ──
 import { LeaderboardHero } from './_sections/LeaderboardHero'
@@ -27,22 +35,56 @@ function CardSkeleton({ className }: { className?: string }) {
   )
 }
 
-const WEEK_OPTIONS = MOCK_LEADERBOARD_CONFIG.weeklySnapshots.map((snap, i) => ({
-  value: String(i),
-  label: i === 0 ? `Current Week (${snap.weekStart})` : `Week of ${snap.weekStart}`,
-}))
-
 export function LeaderboardPage() {
   const navigate = useNavigate()
-  const { success } = useToast()
-  const [weekIdx, setWeekIdx] = useState('0')
+  const { success, error } = useToast()
   const [tab, setTab] = useState('leaderboard')
 
-  const selectedWeek = MOCK_LEADERBOARD_CONFIG.weeklySnapshots[Number(weekIdx)]
-  const entries = selectedWeek?.entries ?? CURRENT_LEADERBOARD
+  const { data: leaderboardData, isLoading: isLeaderboardLoading, isError: isLeaderboardError, refetch } = useGetLeaderboardQuery({ page: 1, limit: 100 })
+  const { data: config, isLoading: isConfigLoading } = useGetLeaderboardConfigQuery()
+  const { data: snapshotsData, isLoading: isSnapshotsLoading } = useGetLeaderboardSnapshotsQuery({ page: 1, limit: 10 })
+  const [updateConfig] = useUpdateLeaderboardConfigMutation()
+  const [triggerSnapshot, { isLoading: isTriggering }] = useTriggerLeaderboardSnapshotMutation()
+
+  const entries = leaderboardData?.data ?? []
+  const snapshots = snapshotsData?.data ?? []
   const podium = entries.slice(0, 3)
   const rest = entries.slice(3)
-  const topEarner = entries[0] ? { name: entries[0].creatorName, earnings: entries[0].weeklyEarnings } : null
+  const topEarner = entries[0] ? { name: entries[0].creator.name, earnings: entries[0].weeklyEarnings } : null
+
+  if (isLeaderboardLoading || isConfigLoading) return <PageLoader />
+  if (isLeaderboardError) return (
+    <EmptyState
+      title="Failed to load leaderboard"
+      description="Unable to fetch leaderboard data. Please try again."
+      actionLabel="Retry"
+      onAction={refetch}
+    />
+  )
+
+  async function handleSaveConfig() {
+    if (!config) return
+    try {
+      await updateConfig({
+        tiers: config.tiers,
+        resetDay: config.resetDay,
+        resetTime: config.resetTime,
+        timezone: config.timezone,
+      }).unwrap()
+      success('Leaderboard config saved')
+    } catch {
+      error('Failed to save config')
+    }
+  }
+
+  async function handleTriggerSnapshot() {
+    try {
+      await triggerSnapshot().unwrap()
+      success('Snapshot triggered successfully')
+    } catch {
+      error('Failed to trigger snapshot')
+    }
+  }
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -51,10 +93,10 @@ export function LeaderboardPage() {
       <LeaderboardHero
         totalEntries={entries.length}
         topEarner={topEarner}
-        weekLabel={selectedWeek?.weekStart ?? 'Current'}
-        weekIdx={weekIdx}
-        onWeekChange={setWeekIdx}
-        weekOptions={WEEK_OPTIONS}
+        weekLabel="Current"
+        weekIdx="0"
+        onWeekChange={() => {}}
+        weekOptions={[{ value: '0', label: 'Current Week' }]}
       />
 
       {/* ── Tabs ── */}
@@ -84,18 +126,26 @@ export function LeaderboardPage() {
         {/* ── Configuration Tab ── */}
         <TabsContent value="config" className="mt-5">
           <Suspense fallback={<CardSkeleton className="min-h-60" />}>
-            <ConfigTab config={MOCK_LEADERBOARD_CONFIG} onSave={() => success('Leaderboard config saved')} />
+            {config && (
+              <ConfigTab config={config} onSave={handleSaveConfig} />
+            )}
           </Suspense>
         </TabsContent>
 
         {/* ── Snapshots Tab ── */}
         <TabsContent value="history" className="mt-5">
           <Suspense fallback={<CardSkeleton className="min-h-60" />}>
-            <SnapshotHistory
-              snapshots={MOCK_LEADERBOARD_CONFIG.weeklySnapshots}
-              onViewWeek={idx => { setWeekIdx(String(idx)); setTab('leaderboard') }}
-              onViewCreator={id => navigate(`/creators/${id}`)}
-            />
+            {isSnapshotsLoading ? (
+              <CardSkeleton className="min-h-60" />
+            ) : (
+              <SnapshotHistory
+                snapshots={snapshots}
+                onViewWeek={() => setTab('leaderboard')}
+                onViewCreator={id => navigate(`/creators/${id}`)}
+                onTriggerSnapshot={handleTriggerSnapshot}
+                isTriggering={isTriggering}
+              />
+            )}
           </Suspense>
         </TabsContent>
       </Tabs>

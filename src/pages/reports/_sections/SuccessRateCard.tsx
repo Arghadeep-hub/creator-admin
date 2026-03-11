@@ -1,20 +1,33 @@
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { SUCCESS_RATE_BY_CATEGORY } from '@/data/chart-data'
 import { ChartCard } from '../reports.types'
+import type { SubmissionsReport } from '@/store/api/reportsApi'
 
-export const SuccessRateCard = memo(function SuccessRateCard() {
+interface Props {
+  submissionsReport: SubmissionsReport | null
+}
+
+export const SuccessRateCard = memo(function SuccessRateCard({ submissionsReport }: Props) {
+  const data = useMemo(() => {
+    if (!submissionsReport?.byCampaign) return []
+    return submissionsReport.byCampaign.map(c => ({
+      category: c.campaignName,
+      count: c.submissions,
+      successRate: c.submissions > 0 ? Math.round((c.approved / c.submissions) * 100) : 0,
+    }))
+  }, [submissionsReport])
+
   const lowestRate = useMemo(
-    () => Math.min(...SUCCESS_RATE_BY_CATEGORY.map(r => r.successRate)),
-    []
+    () => data.length > 0 ? Math.min(...data.map(r => r.successRate)) : 0,
+    [data]
   )
 
   return (
-    <ChartCard title="Success Rate by Category" subtitle="Campaign performance across content categories">
+    <ChartCard title="Success Rate by Campaign" subtitle="Campaign performance breakdown">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 pt-1">
-        {SUCCESS_RATE_BY_CATEGORY.map(row => {
-          const isWorst = row.successRate === lowestRate
+        {data.map(row => {
+          const isWorst = data.length > 1 && row.successRate === lowestRate
           return (
             <div
               key={row.category}
@@ -24,15 +37,15 @@ export const SuccessRateCard = memo(function SuccessRateCard() {
             >
               <div className="flex justify-between items-center mb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{row.category}</span>
+                  <span className="text-sm font-semibold truncate max-w-32">{row.category}</span>
                   {isWorst && (
-                    <Badge variant="error" className="text-[10px] rounded-full">
+                    <Badge variant="error" className="text-[10px] rounded-full shrink-0">
                       Needs attention
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{row.count} campaigns</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-muted-foreground">{row.count} subs</span>
                   <span className={cn(
                     'text-xs font-bold num-font px-2 py-0.5 rounded-full',
                     row.successRate >= 75 ? 'bg-emerald-50 text-emerald-700' : row.successRate >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
@@ -51,6 +64,9 @@ export const SuccessRateCard = memo(function SuccessRateCard() {
             </div>
           )
         })}
+        {data.length === 0 && (
+          <p className="text-sm text-muted-foreground col-span-2 text-center py-4">No campaign data available</p>
+        )}
       </div>
     </ChartCard>
   )

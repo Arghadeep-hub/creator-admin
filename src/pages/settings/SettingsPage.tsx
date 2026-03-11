@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Save, Shield } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { PageLoader } from '@/components/ui/PageLoader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,18 +9,50 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { DEFAULT_SETTINGS } from '@/data/settings'
-import { MOCK_BADGES } from '@/data/badges'
-import { MOCK_FRAUD_RULES } from '@/data/fraud-rules'
+import {
+  useGetSettingsQuery,
+  useUpdateSettingsMutation,
+  useGetFraudRulesQuery,
+  useUpdateFraudRuleMutation,
+  useGetBadgesQuery,
+  useUpdateBadgeMutation,
+} from '@/store/api/settingsApi'
+import type { PlatformSettings } from '@/types'
+
+const FraudRuleEditor  = lazy(() => import('./_sections/FraudRuleEditor'))
+const BadgeEditor      = lazy(() => import('./_sections/BadgeEditor'))
+const LocationManager  = lazy(() => import('./_sections/LocationManager'))
+
+const TAB_FALLBACK = <div className="animate-pulse h-32 bg-gray-100 rounded-lg" />
 
 export function SettingsPage() {
   const { session } = useAuth()
-  const { success } = useToast()
+  const { success, error } = useToast()
   const [tab, setTab] = useState('general')
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+
+  const { data: remoteSettings, isLoading: isSettingsLoading } = useGetSettingsQuery()
+  const [updateSettings, { isLoading: isSaving }] = useUpdateSettingsMutation()
+
+  const { data: fraudRules = [], isLoading: isFraudLoading } = useGetFraudRulesQuery()
+  const [updateFraudRule] = useUpdateFraudRuleMutation()
+
+  const { data: badges = [], isLoading: isBadgesLoading } = useGetBadgesQuery()
+  const [updateBadge] = useUpdateBadgeMutation()
+
+  // Local draft of settings — synced from server on load
+  const [settings, setSettings] = useState<PlatformSettings | null>(null)
+  if (remoteSettings && !settings) {
+    setSettings({
+      general: remoteSettings.general ?? { platformName: '', supportEmail: '', supportPhone: '', timezone: '', currencyFormat: '' },
+      campaignDefaults: remoteSettings.campaignDefaults ?? { defaultPayoutMin: 0, defaultPayoutMax: 0, defaultRequiredViews: 0, defaultCheckInRadius: 0, defaultDeadlineDays: 0, autoExpireAfterDeadline: false },
+      verification: remoteSettings.verification ?? { windowHours: 0, autoApproveThreshold: 0, fraudSensitivity: 'medium', postDeletionPenaltyPercent: 0, captionEditPenaltyPercent: 0 },
+      payout: remoteSettings.payout ?? { minWithdrawalAmount: 0, processingDelayHours: 0, dailyTransactionLimit: 0, autoRetryFailed: false, maxRetries: 0 },
+      trustScore: remoteSettings.trustScore,
+      notifications: remoteSettings.notifications,
+    })
+  }
 
   if (session?.role !== 'super_admin') {
     return (
@@ -32,27 +65,54 @@ export function SettingsPage() {
     )
   }
 
-  function saveTab() {
-    success('Settings saved', `${tab.replace(/_/g, ' ')} settings updated`)
+  if (isSettingsLoading || isFraudLoading || isBadgesLoading) return <PageLoader />
+  if (!settings) return null
+
+  async function saveTab() {
+    if (!settings) return
+    try {
+      await updateSettings(settings).unwrap()
+      success('Settings saved', `${tab.replace(/_/g, ' ')} settings updated`)
+    } catch {
+      error('Failed to save settings')
+    }
   }
 
   function updateGeneral(field: string, value: string) {
-    setSettings(s => ({ ...s, general: { ...s.general, [field]: value } }))
+    setSettings(s => s ? ({ ...s, general: { ...s.general, [field]: value } }) : s)
   }
 
   function updateVerification(field: string, value: string | number) {
-    setSettings(s => ({ ...s, verification: { ...s.verification, [field]: value } }))
+    setSettings(s => s ? ({ ...s, verification: { ...s.verification, [field]: value } }) : s)
   }
 
   function updatePayout(field: string, value: number | boolean) {
-    setSettings(s => ({ ...s, payout: { ...s.payout, [field]: value } }))
+    setSettings(s => s ? ({ ...s, payout: { ...s.payout, [field]: value } }) : s)
+  }
+
+  async function toggleFraudRule(id: string, currentActive: boolean) {
+    try {
+      await updateFraudRule({ id, body: { isActive: !currentActive } }).unwrap()
+      success(`Fraud rule ${currentActive ? 'disabled' : 'enabled'}`)
+    } catch {
+      error('Failed to update fraud rule')
+    }
+  }
+
+  async function toggleBadge(id: string, currentActive: boolean) {
+    try {
+      await updateBadge({ id, body: { isActive: !currentActive } }).unwrap()
+      success(`Badge ${currentActive ? 'disabled' : 'enabled'}`)
+    } catch {
+      error('Failed to update badge')
+    }
   }
 
   return (
     <div className="space-y-5">
       <PageHeader title="Platform Settings" subtitle="Configure platform-wide behavior and defaults">
-        <Button onClick={saveTab}>
-          <Save className="h-4 w-4" />Save Changes
+        <Button onClick={saveTab} disabled={isSaving}>
+          <Save className="h-4 w-4" />{isSaving ? 'Saving…' : 'Save Changes'}
         </Button>
       </PageHeader>
 
@@ -66,6 +126,7 @@ export function SettingsPage() {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="fraud">Fraud Rules</TabsTrigger>
           <TabsTrigger value="badges">Badges</TabsTrigger>
+          <TabsTrigger value="locations">Locations</TabsTrigger>
         </TabsList>
 
         {/* ── General ── */}
@@ -111,7 +172,7 @@ export function SettingsPage() {
                     <Input
                       type="number"
                       value={(settings.campaignDefaults as unknown as Record<string, number>)[row.field]}
-                      onChange={e => setSettings(s => ({ ...s, campaignDefaults: { ...s.campaignDefaults, [row.field]: +e.target.value } }))}
+                      onChange={e => setSettings(s => s ? ({ ...s, campaignDefaults: { ...s.campaignDefaults, [row.field]: +e.target.value } }) : s)}
                     />
                   </div>
                 ))}
@@ -123,7 +184,7 @@ export function SettingsPage() {
                 </div>
                 <Switch
                   checked={settings.campaignDefaults.autoExpireAfterDeadline}
-                  onCheckedChange={v => setSettings(s => ({ ...s, campaignDefaults: { ...s.campaignDefaults, autoExpireAfterDeadline: v } }))}
+                  onCheckedChange={v => setSettings(s => s ? ({ ...s, campaignDefaults: { ...s.campaignDefaults, autoExpireAfterDeadline: v } }) : s)}
                 />
               </div>
             </CardContent>
@@ -173,12 +234,16 @@ export function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Trust Score Formula</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Weights must sum to 100%: KYC {settings.trustScore.kycWeight}% + Approval Rate {settings.trustScore.approvalRateWeight}% + Integrity {settings.trustScore.integrityWeight}% + Leaderboard {settings.trustScore.leaderboardWeight}% = {settings.trustScore.kycWeight + settings.trustScore.approvalRateWeight + settings.trustScore.integrityWeight + settings.trustScore.leaderboardWeight}%
-              </p>
+              {settings.trustScore && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Weights must sum to 100%: KYC {settings.trustScore.kycWeight}% + Approval Rate {settings.trustScore.approvalRateWeight}% + Integrity {settings.trustScore.integrityWeight}% + Leaderboard {settings.trustScore.leaderboardWeight}% = {settings.trustScore.kycWeight + settings.trustScore.approvalRateWeight + settings.trustScore.integrityWeight + settings.trustScore.leaderboardWeight}%
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-4 max-w-lg">
-              {[
+              {!settings.trustScore ? (
+                <p className="text-sm text-muted-foreground">Trust score settings not configured.</p>
+              ) : [
                 { label: 'KYC Weight (%)', field: 'kycWeight' },
                 { label: 'Approval Rate Weight (%)', field: 'approvalRateWeight' },
                 { label: 'Integrity Weight (%)', field: 'integrityWeight' },
@@ -190,7 +255,7 @@ export function SettingsPage() {
                   <Input
                     type="number"
                     value={(settings.trustScore as Record<string, number>)[row.field]}
-                    onChange={e => setSettings(s => ({ ...s, trustScore: { ...s.trustScore, [row.field]: +e.target.value } }))}
+                    onChange={e => setSettings(s => s ? ({ ...s, trustScore: { ...s.trustScore!, [row.field]: +e.target.value } }) : s)}
                   />
                 </div>
               ))}
@@ -239,96 +304,63 @@ export function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>Notification Settings</CardTitle></CardHeader>
             <CardContent className="space-y-4 max-w-lg">
-              {[
-                { label: 'Email Notifications', field: 'emailEnabled', desc: 'Send email alerts for important events' },
-                { label: 'Push Notifications', field: 'pushEnabled', desc: 'Browser push notifications' },
-              ].map(row => (
-                <div key={row.field} className="flex items-center justify-between py-2 border-b">
-                  <div>
-                    <p className="text-sm font-medium">{row.label}</p>
-                    <p className="text-xs text-muted-foreground">{row.desc}</p>
-                  </div>
-                  <Switch
-                    checked={(settings.notifications as unknown as Record<string, boolean>)[row.field]}
-                    onCheckedChange={v => setSettings(s => ({ ...s, notifications: { ...s.notifications, [row.field]: v } }))}
-                  />
-                </div>
-              ))}
-              <div className="space-y-2 mt-2">
-                <p className="text-sm font-semibold">Notification Events</p>
-                {Object.entries(settings.notifications.events).map(([key, enabled]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <Label className="capitalize">{key.replace(/_/g, ' ')}</Label>
+              {!settings.notifications ? (
+                <p className="text-sm text-muted-foreground">Notification settings not configured.</p>
+              ) : <>
+                {[
+                  { label: 'Email Notifications', field: 'emailEnabled', desc: 'Send email alerts for important events' },
+                  { label: 'Push Notifications', field: 'pushEnabled', desc: 'Browser push notifications' },
+                ].map(row => (
+                  <div key={row.field} className="flex items-center justify-between py-2 border-b">
+                    <div>
+                      <p className="text-sm font-medium">{row.label}</p>
+                      <p className="text-xs text-muted-foreground">{row.desc}</p>
+                    </div>
                     <Switch
-                      checked={enabled}
-                      onCheckedChange={v => setSettings(s => ({
-                        ...s,
-                        notifications: { ...s.notifications, events: { ...s.notifications.events, [key]: v } }
-                      }))}
+                      checked={(settings.notifications as unknown as Record<string, boolean>)[row.field]}
+                      onCheckedChange={v => setSettings(s => s ? ({ ...s, notifications: { ...s.notifications!, [row.field]: v } }) : s)}
                     />
                   </div>
                 ))}
-              </div>
+                <div className="space-y-2 mt-2">
+                  <p className="text-sm font-semibold">Notification Events</p>
+                  {Object.entries(settings.notifications.events).map(([key, enabled]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <Label className="capitalize">{key.replace(/_/g, ' ')}</Label>
+                      <Switch
+                        checked={enabled}
+                        onCheckedChange={v => setSettings(s => s ? ({
+                          ...s,
+                          notifications: { ...s.notifications!, events: { ...s.notifications!.events, [key]: v } }
+                        }) : s)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Fraud Rules ── */}
+        {/* ── Fraud Rules — lazy ── */}
         <TabsContent value="fraud">
-          <div className="space-y-3">
-            {MOCK_FRAUD_RULES.map(rule => (
-              <Card key={rule.id}>
-                <CardContent className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-sm">{rule.name}</p>
-                      <Badge variant={rule.severity === 'auto_reject' ? 'error' : rule.severity === 'critical' ? 'error' : 'warning'} className="text-xs">
-                        {rule.severity}
-                      </Badge>
-                      <Badge variant="gray" className="text-xs">{rule.penaltyPercent}% penalty</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{rule.description}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Triggered {rule.timesTriggered} times
-                      {rule.lastTriggeredAt && ` · Last: ${new Date(rule.lastTriggeredAt).toLocaleDateString('en-IN')}`}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={rule.isActive}
-                    onCheckedChange={() => success(`Fraud rule ${rule.isActive ? 'disabled' : 'enabled'}`, rule.name)}
-                  />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Suspense fallback={TAB_FALLBACK}>
+            <FraudRuleEditor fraudRules={fraudRules} onToggle={toggleFraudRule} />
+          </Suspense>
         </TabsContent>
 
-        {/* ── Badges ── */}
+        {/* ── Badges — lazy ── */}
         <TabsContent value="badges">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_BADGES.map(badge => (
-              <Card key={badge.id}>
-                <CardContent className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold">{badge.name}</p>
-                      <Badge variant="warning" className="text-xs">{badge.totalEarned} earned</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{badge.description}</p>
-                    <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                      <span>Criteria: {badge.unlockCriteria.replace(/_/g, ' ')}</span>
-                      <span>Threshold: {badge.thresholdValue}</span>
-                      {badge.rewardMultiplier && <span>+{((badge.rewardMultiplier - 1) * 100).toFixed(0)}% bonus</span>}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={badge.isActive}
-                    onCheckedChange={() => success(`Badge ${badge.isActive ? 'disabled' : 'enabled'}`, badge.name)}
-                  />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Suspense fallback={TAB_FALLBACK}>
+            <BadgeEditor badges={badges} onToggle={toggleBadge} />
+          </Suspense>
+        </TabsContent>
+
+        {/* ── Locations — lazy ── */}
+        <TabsContent value="locations">
+          <Suspense fallback={TAB_FALLBACK}>
+            <LocationManager />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

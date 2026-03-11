@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/contexts/ToastContext'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { SubmissionAdmin, CreatorAdmin } from '@/types'
+import { useReviewSubmissionMutation } from '@/store/api/submissionsApi'
 
 interface Props {
   sub: SubmissionAdmin
@@ -20,12 +21,34 @@ export default function RightColumn({ sub, creator }: Props) {
   const { success, error } = useToast()
   const [rejectionReason, setRejectionReason] = useState('')
   const [showRejectForm, setShowRejectForm] = useState(false)
+  const [reviewSubmission, { isLoading: isReviewing }] = useReviewSubmissionMutation()
+
+  async function handleApprove() {
+    try {
+      await reviewSubmission({ id: sub.id, body: { action: 'approve' } }).unwrap()
+      success('Submission approved!', `Payout of ${formatCurrency(sub.projectedPayout)} queued`)
+    } catch {
+      error('Failed to approve submission')
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectionReason) return
+    try {
+      await reviewSubmission({ id: sub.id, body: { action: 'reject', rejectionReason } }).unwrap()
+      error('Submission rejected', rejectionReason)
+      setShowRejectForm(false)
+      setRejectionReason('')
+    } catch {
+      error('Failed to reject submission')
+    }
+  }
 
   return (
     <div className="space-y-3">
 
       {/* ── Decision Panel ──────────────────────────────────────────────── */}
-      {sub.status === 'pending' && (
+      {sub.status === 'PENDING' && (
         <div className="admin-card overflow-hidden">
           <div className="h-1 bg-linear-to-r from-emerald-400 to-emerald-500" />
           <div className="p-4">
@@ -35,8 +58,9 @@ export default function RightColumn({ sub, creator }: Props) {
 
             {/* Approve */}
             <button
-              onClick={() => success('Submission approved!', `Payout of ${formatCurrency(sub.projectedPayout)} queued`)}
-              className="w-full flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-semibold rounded-xl px-4 py-3 transition-all text-sm mb-2"
+              onClick={handleApprove}
+              disabled={isReviewing}
+              className="w-full flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-semibold rounded-xl px-4 py-3 transition-all text-sm mb-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <CheckCircle className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-left">Approve & Queue Payout</span>
@@ -47,7 +71,8 @@ export default function RightColumn({ sub, creator }: Props) {
             {!showRejectForm ? (
               <button
                 onClick={() => setShowRejectForm(true)}
-                className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] font-semibold rounded-xl px-4 py-2.5 transition-all text-sm"
+                disabled={isReviewing}
+                className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] font-semibold rounded-xl px-4 py-2.5 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <XCircle className="h-4 w-4" />Reject Submission
               </button>
@@ -62,8 +87,8 @@ export default function RightColumn({ sub, creator }: Props) {
                 />
                 <div className="flex gap-2">
                   <button
-                    disabled={!rejectionReason}
-                    onClick={() => { error('Submission rejected', rejectionReason); setShowRejectForm(false) }}
+                    disabled={!rejectionReason || isReviewing}
+                    onClick={handleReject}
                     className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-semibold rounded-xl px-4 py-2.5 text-sm transition-all"
                   >
                     Confirm Reject
@@ -87,11 +112,11 @@ export default function RightColumn({ sub, creator }: Props) {
 
         <div className="space-y-2 text-sm">
           {[
-            { label: 'Base Payout',       val: formatCurrency(sub.payoutBreakdown.base),            color: '' },
-            { label: 'Engagement Bonus',  val: `+${formatCurrency(sub.payoutBreakdown.engagementBonus)}`, color: 'text-emerald-600' },
-            { label: 'Trust Bonus',       val: `+${formatCurrency(sub.payoutBreakdown.trustBonus)}`,      color: 'text-emerald-600' },
-            ...(sub.payoutBreakdown.penalties < 0
-              ? [{ label: 'Penalties', val: formatCurrency(sub.payoutBreakdown.penalties), color: 'text-red-600' }]
+            { label: 'Base Payout',       val: formatCurrency(sub.payoutBase),                          color: '' },
+            { label: 'Engagement Bonus',  val: `+${formatCurrency(sub.payoutEngagementBonus)}`,         color: 'text-emerald-600' },
+            { label: 'Trust Bonus',       val: `+${formatCurrency(sub.payoutTrustBonus)}`,              color: 'text-emerald-600' },
+            ...(sub.payoutPenalties < 0
+              ? [{ label: 'Penalties', val: formatCurrency(sub.payoutPenalties), color: 'text-red-600' }]
               : []),
           ].map(({ label, val, color }) => (
             <div key={label} className="flex justify-between items-center">
@@ -103,20 +128,13 @@ export default function RightColumn({ sub, creator }: Props) {
 
         <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
           <span className="font-semibold text-sm">Total Projected</span>
-          <span className="text-xl font-bold text-primary num-font">{formatCurrency(sub.payoutBreakdown.total)}</span>
+          <span className="text-xl font-bold text-primary num-font">{formatCurrency(sub.projectedPayout)}</span>
         </div>
 
         {sub.finalPayout && (
           <div className="mt-2 flex items-center justify-between">
             <span className="font-semibold text-sm">Final Payout</span>
             <span className="text-xl font-bold text-emerald-600 num-font">{formatCurrency(sub.finalPayout)}</span>
-          </div>
-        )}
-
-        {sub.payoutOverride && (
-          <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <p className="text-xs font-semibold text-amber-700">Override by {sub.payoutOverride.overriddenBy}</p>
-            <p className="text-xs text-amber-600 mt-0.5">{sub.payoutOverride.reason}</p>
           </div>
         )}
       </div>
@@ -131,19 +149,9 @@ export default function RightColumn({ sub, creator }: Props) {
         </div>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-4xl font-bold num-font text-primary leading-none">#{sub.ranking}</p>
-            <p className="text-xs text-muted-foreground mt-1">of {sub.totalRankEntries} creators</p>
+            <p className="text-4xl font-bold num-font text-primary leading-none">N/A</p>
+            <p className="text-xs text-muted-foreground mt-1">ranking not available</p>
           </div>
-          {sub.rankHistory.length > 1 && (
-            <div className="space-y-1 text-right">
-              {sub.rankHistory.map((rh, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs justify-end">
-                  <span className="uppercase text-muted-foreground">{rh.stage}</span>
-                  <span className="font-bold text-slate-700">#{rh.rank}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -179,18 +187,12 @@ export default function RightColumn({ sub, creator }: Props) {
             </div>
             <h3 className="font-semibold text-sm">Bill Verification</h3>
           </div>
-          <StatusBadge status={sub.billVerificationStatus} />
+          <StatusBadge status={sub.billVerified ? 'VERIFIED' : 'PENDING'} />
         </div>
 
         <p className="text-xs text-muted-foreground mb-3">
           Bill <span className="font-mono text-slate-700">#{sub.billNumber}</span>
         </p>
-
-        {sub.billRejectionReason && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2 mb-3">
-            {sub.billRejectionReason}
-          </p>
-        )}
 
         <div className="grid grid-cols-2 gap-2">
           <button

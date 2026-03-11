@@ -1,30 +1,53 @@
 import { memo } from 'react'
-import { Trophy, Users, TrendingUp, ChevronRight } from 'lucide-react'
+import { Trophy, Users, TrendingUp, ChevronRight, RefreshCw } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RANK_ICONS } from '../leaderboard.types'
-import type { LeaderboardConfig } from '@/types'
-
-type WeeklySnapshot = LeaderboardConfig['weeklySnapshots'][number]
+import type { LeaderboardSnapshot } from '@/store/api/leaderboardApi'
 
 interface SnapshotHistoryProps {
-  snapshots: WeeklySnapshot[]
+  snapshots: LeaderboardSnapshot[]
   onViewWeek: (idx: number) => void
   onViewCreator: (id: string) => void
+  onTriggerSnapshot?: () => void
+  isTriggering?: boolean
 }
 
 export const SnapshotHistory = memo(function SnapshotHistory({
   snapshots,
   onViewWeek,
   onViewCreator,
+  onTriggerSnapshot,
+  isTriggering,
 }: SnapshotHistoryProps) {
   return (
     <div className="space-y-3">
+      {onTriggerSnapshot && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onTriggerSnapshot}
+            disabled={isTriggering}
+            className="rounded-xl gap-1.5"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isTriggering && 'animate-spin')} />
+            {isTriggering ? 'Triggering…' : 'Trigger Snapshot'}
+          </Button>
+        </div>
+      )}
+
+      {snapshots.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          No snapshots available yet.
+        </div>
+      )}
+
       {snapshots.map((snap, i) => (
         <div
-          key={i}
+          key={snap.weekStart}
           className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
         >
           <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between flex-wrap gap-2">
@@ -75,10 +98,10 @@ export const SnapshotHistory = memo(function SnapshotHistory({
                     onClick={() => onViewCreator(e.creatorId)}
                   >
                     <span className="text-xl">{RANK_ICONS[e.rank - 1]}</span>
-                    <Avatar name={e.creatorName} size="sm" />
+                    <Avatar name={e.creator.name} size="sm" />
                     <div className="min-w-0">
                       <p className="font-semibold text-xs leading-tight truncate">
-                        {e.creatorName}
+                        {e.creator.name}
                       </p>
                       <p className="text-xs text-primary num-font font-bold mt-0.5">
                         {formatCurrency(e.weeklyEarnings)}
